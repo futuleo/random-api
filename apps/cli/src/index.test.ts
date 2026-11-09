@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,10 @@ beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "random-api-cli-"));
   input = join(directory, "input.json");
   await writeFile(input, JSON.stringify(source));
+  await writeFile(
+    join(directory, "fields.json"),
+    JSON.stringify([{ path: ["name"], generator: "name" }]),
+  );
   await writeFile(
     join(directory, "invalid.json"),
     '{"name":"SENTINEL_INVALID"',
@@ -73,6 +77,45 @@ describe("CLI", () => {
     expect(result.stdout).toContain("--seed");
   });
 
+  it("supports inline and file-based field selection with CSV output", () => {
+    const result = run(
+      "--input",
+      input,
+      "--generate",
+      "--fields",
+      join(directory, "fields.json"),
+      "--field",
+      '["count"]=uuid',
+      "--format",
+      "csv",
+    );
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain('"[""name""]"');
+    expect(result.stdout).toMatch(/[A-Z][a-z]+ [A-Z][a-z]+/);
+    expect(result.stdout).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-4/);
+    expect(result.stdout).not.toContain("SENTINEL");
+  });
+
+  it("writes new files without overwriting existing output or the input", async () => {
+    const output = join(directory, "generated.csv");
+    const result = run(
+      "--input",
+      input,
+      "--generate",
+      "--format",
+      "csv",
+      "-o",
+      output,
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(await readFile(output, "utf8")).toContain('"[""name""]"');
+    expect(run("--input", input, "--generate", "-o", output).status).toBe(1);
+    expect(run("--input", input, "--generate", "-o", input).status).toBe(1);
+    expect(JSON.parse(await readFile(input, "utf8"))).toEqual(source);
+  });
+
   it("reports argument, file and JSON errors without reflecting input", () => {
     for (const args of [
       ["--input", input, "--seed", "SENTINEL_SEED"],
@@ -80,6 +123,17 @@ describe("CLI", () => {
       ["--input", join(directory, "invalid.json"), "--generate"],
       ["--input", join(directory, "SENTINEL_MISSING.json")],
       ["--SENTINEL_ARGUMENT"],
+      ["--input", input, "--generate", "--format", "SENTINEL"],
+      ["--input", input, "--generate", "--field", "SENTINEL=email"],
+      ["--input", input, "--generate", "--field", '["name"]=SENTINEL'],
+      [
+        "--input",
+        input,
+        "--generate",
+        "--fields",
+        join(directory, "invalid.json"),
+      ],
+      ["--input", input, "--generate", "--field", '["missing"]=email'],
       [],
     ]) {
       const result = run(...args);
