@@ -14,7 +14,13 @@ export {
   generateSyntheticData,
   type JsonValue,
 } from "./generate.js";
+export {
+  generateSimilarObjects,
+  isObjectTemplate,
+  validateRecordCount,
+} from "./objects.js";
 export { generateRecords, type RecordSettings } from "./records.js";
+export { getScenario, SCENARIOS, type Scenario } from "./scenarios.js";
 
 export type KeyPath = readonly string[];
 

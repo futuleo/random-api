@@ -1,5 +1,6 @@
 import { type FieldGenerator, parseFieldGenerators } from "./fields.js";
 import { generateSyntheticData, type JsonValue } from "./generate.js";
+import { validateRecordCount } from "./objects.js";
 
 export interface RecordSettings {
   readonly seed: string;
@@ -8,13 +9,7 @@ export interface RecordSettings {
 }
 
 export function generateRecords(settings: RecordSettings): JsonValue {
-  if (
-    !Number.isInteger(settings.count) ||
-    settings.count < 1 ||
-    settings.count > 1000
-  ) {
-    throw new RangeError("Record count must be between 1 and 1000.");
-  }
+  validateRecordCount(settings.count);
   const fields = parseFieldGenerators(settings.fields);
   if (
     fields.length === 0 ||

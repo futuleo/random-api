@@ -3,9 +3,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import {
   extractKeyPaths,
+  generateSimilarObjects,
   generateSyntheticData,
+  getScenario,
   parseFieldGenerators,
+  SCENARIOS,
   serializeOutput,
+  validateRecordCount,
 } from "@random-api/core";
 
 function accent(text: string): string {
@@ -22,6 +26,9 @@ async function main(): Promise<void> {
         input: { type: "string", short: "i" },
         generate: { type: "boolean" },
         seed: { type: "string" },
+        count: { type: "string", short: "n" },
+        scenario: { type: "string" },
+        "list-scenarios": { type: "boolean" },
         field: { type: "string", multiple: true },
         fields: { type: "string" },
         format: { type: "string" },
@@ -46,6 +53,9 @@ async function main(): Promise<void> {
         "WORKSPACE",
         "  -i, --input <file>       Source JSON; key inspection by default",
         "      --generate           Generate synthetic values locally",
+        "  -n, --count <1-1000>     Number of objects (object templates only)",
+        "      --scenario <id>      Generate a preset (10 objects by default)",
+        "      --list-scenarios     List all 30 built-in scenarios as JSON",
         '      --seed <text>        Reproducible seed (default: "random-api")',
         "      --field <path=kind>   Repeatable; e.g. '[\"email\"]=email'",
         "      --fields <file>       JSON array of {path, generator} settings",
@@ -59,6 +69,8 @@ async function main(): Promise<void> {
         "EXAMPLE",
         "  pnpm cli --input users.json --generate --field '[\"email\"]=email'",
         "  pnpm cli --input users.json --generate --format csv -o synthetic.csv",
+        "  pnpm cli --scenario users --count 100 --format csv",
+        "  pnpm cli --list-scenarios",
         "",
         "PRIVACY",
         "  No network requests. Keys and structure remain; not anonymization.",
@@ -70,18 +82,58 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (typeof options.values.input !== "string") {
-    throw new Error("A JSON file is required. Use --input <file.json>.");
+  if (options.values["list-scenarios"]) {
+    if (Object.keys(options.values).some((key) => key !== "list-scenarios")) {
+      throw new Error("Use --list-scenarios on its own.");
+    }
+    process.stdout.write(
+      `${JSON.stringify(
+        SCENARIOS.map(({ id, name, category, description }) => ({
+          id,
+          name,
+          category,
+          description,
+        })),
+        null,
+        2,
+      )}\n`,
+    );
+    return;
   }
   if (
-    !options.values.generate &&
-    ["seed", "field", "fields", "format"].some(
+    options.values.input !== undefined &&
+    options.values.scenario !== undefined
+  ) {
+    throw new Error("Choose either --input or --scenario, not both.");
+  }
+  const scenario =
+    typeof options.values.scenario === "string"
+      ? getScenario(options.values.scenario)
+      : undefined;
+  const generating = options.values.generate === true || scenario !== undefined;
+  if (typeof options.values.input !== "string" && !scenario) {
+    throw new Error("Use --input <file.json> or --scenario <id>.");
+  }
+  if (
+    !generating &&
+    ["seed", "field", "fields", "format", "count"].some(
       (key) => options.values[key] !== undefined,
     )
   ) {
     throw new Error(
-      "--seed, --field, --fields and --format require --generate.",
+      "--seed, --field, --fields, --format and --count require --generate or --scenario.",
     );
+  }
+  let count: number | undefined = scenario ? 10 : undefined;
+  if (options.values.count !== undefined) {
+    if (
+      typeof options.values.count !== "string" ||
+      !/^\d+$/.test(options.values.count)
+    ) {
+      throw new Error("Record count must be between 1 and 1000.");
+    }
+    count = Number(options.values.count);
+    validateRecordCount(count);
   }
   const format = options.values.format ?? "json";
   if (format !== "json" && format !== "csv") {
@@ -116,30 +168,45 @@ async function main(): Promise<void> {
     }
     rawFields.push({ path, generator: setting.slice(split + 1) });
   }
-  const fields = parseFieldGenerators(rawFields);
+  const overrides = parseFieldGenerators(rawFields);
+  const overridePaths = new Set(
+    overrides.map((field) => JSON.stringify(field.path)),
+  );
+  const fields = [
+    ...(scenario?.fields.filter(
+      (field) => !overridePaths.has(JSON.stringify(field.path)),
+    ) ?? []),
+    ...overrides,
+  ];
 
-  let text: string;
-  try {
-    text = await readFile(options.values.input, "utf8");
-  } catch {
-    throw new Error("Could not read the input file.");
+  let document: unknown = scenario?.template;
+  if (!scenario) {
+    if (typeof options.values.input !== "string")
+      throw new Error("A JSON file is required.");
+    let text: string;
+    try {
+      text = await readFile(options.values.input, "utf8");
+    } catch {
+      throw new Error("Could not read the input file.");
+    }
+    try {
+      document = JSON.parse(text);
+    } catch {
+      throw new Error("Invalid JSON. Source content is omitted for privacy.");
+    }
   }
 
-  let document: unknown;
-  try {
-    document = JSON.parse(text);
-  } catch {
-    throw new Error("Invalid JSON. Source content is omitted for privacy.");
-  }
-
-  const result = options.values.generate
-    ? generateSyntheticData(document, {
-        fields,
-        seed:
-          typeof options.values.seed === "string"
-            ? options.values.seed
-            : "random-api",
-      })
+  const generationOptions = {
+    fields,
+    seed:
+      typeof options.values.seed === "string"
+        ? options.values.seed
+        : "random-api",
+  };
+  const result = generating
+    ? count === undefined
+      ? generateSyntheticData(document, generationOptions)
+      : generateSimilarObjects(document, { ...generationOptions, count })
     : extractKeyPaths(document).map((path) => [...path]);
   const output = serializeOutput(result, format);
   if (typeof options.values.output === "string") {
@@ -155,7 +222,7 @@ async function main(): Promise<void> {
   }
   if (process.stderr.isTTY) {
     process.stderr.write(
-      `\n${accent("Random API")} / ${options.values.generate ? "Generated" : "Inspected"} locally / ${format.toUpperCase()} / ${typeof options.values.output === "string" ? "File saved" : "Complete"}\n`,
+      `\n${accent("Random API")} / ${generating ? "Generated" : "Inspected"} locally / ${format.toUpperCase()} / ${typeof options.values.output === "string" ? "File saved" : "Complete"}\n`,
     );
   }
 }
