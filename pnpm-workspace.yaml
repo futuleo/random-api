@@ -5,4 +5,5 @@ packages:
 useNodeVersion: 24.22.1
 
 allowBuilds:
+  electron: true
   esbuild: true

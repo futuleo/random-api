@@ -1,0 +1,73 @@
+{
+  "name": "@random-api/desktop",
+  "version": "0.0.0",
+  "description": "Unsigned, local-only Electron desktop shell for Random API",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "pnpm --filter @random-api/web build && pnpm build && electron .",
+    "start": "electron .",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "electron . --smoke-test",
+    "icons": "python3 assets/generate-icons.py",
+    "package:dir": "pnpm --filter @random-api/web build && pnpm build && electron-builder --dir --publish never",
+    "package:mac": "pnpm --filter @random-api/web build && pnpm build && electron-builder --mac --publish never",
+    "package:win": "pnpm --filter @random-api/web build && pnpm build && electron-builder --win --publish never",
+    "package:linux": "pnpm --filter @random-api/web build && pnpm build && electron-builder --linux --publish never"
+  },
+  "devDependencies": {
+    "@random-api/web": "workspace:*",
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "dev.randomapi.desktop",
+    "productName": "Random API",
+    "asar": true,
+    "forceCodeSigning": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*.js",
+      "assets/icon.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "identity": null,
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": false
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Development",
+      "maintainer": "Random API contributors",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}

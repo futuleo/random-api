@@ -9,13 +9,16 @@
   "scripts": {
     "dev": "pnpm --filter @random-api/core build && pnpm --filter @random-api/web dev",
     "dev:api": "pnpm --filter @random-api/core build && pnpm --filter @random-api/api dev",
+    "dev:desktop": "pnpm --filter @random-api/core build && pnpm --filter @random-api/desktop dev",
+    "test:desktop": "pnpm build && pnpm --filter @random-api/desktop smoke",
+    "package:desktop": "pnpm --filter @random-api/core build && pnpm --filter @random-api/desktop package:dir",
     "build": "pnpm -r build",
     "typecheck": "pnpm --filter @random-api/core build && pnpm -r typecheck",
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "pnpm --filter @random-api/core build && vitest run",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "cli": "pnpm --filter @random-api/core build && node apps/cli/src/index.ts"
+    "cli": "pnpm --silent --filter @random-api/core build && node apps/cli/src/index.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
