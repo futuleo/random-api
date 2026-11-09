@@ -12,7 +12,7 @@
 
 ## Architecture
 
-- `packages/core`: platform-independent, local JSON analysis and future synthetic
+- `packages/core`: platform-independent, local JSON analysis and seeded synthetic
   data generation. No networking, filesystem, UI, environment variables, or providers.
 - `packages/llm`: keys-only request construction and future provider adapters.
   Never depend on application code.
@@ -45,3 +45,17 @@
 - Surface failures without logging the source document, source snippets, or secrets.
 - The REST scaffold is loopback-only and has no authentication or generation
   endpoints yet. Do not expose it publicly without authentication and resource limits.
+
+## Agent coordination
+
+- `.github/agents/developer.agent.md` implements scoped features and their tests.
+- `.github/agents/reviewer.agent.md` provides read-only correctness and privacy
+  review; it cannot edit files or execute commands.
+- Profiles inherit the selected model; no provider credentials are required by
+  these files. Model and tool availability still depend on the execution host.
+- Keep small or tightly coupled work in one session. Delegate only concrete,
+  independent workstreams, with a bounded scope and an explicit handoff.
+- Do not have multiple agents edit the same files concurrently. The coordinator
+  owns integration, resolution of conflicting changes and the final pnpm check.
+- Do not create branches, commits, pushes or pull requests without user
+  authorization. Profiles do not start agents or scheduled work automatically.

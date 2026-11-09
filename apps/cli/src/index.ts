@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { extractKeyPaths } from "@random-api/core";
+import { extractKeyPaths, generateSyntheticData } from "@random-api/core";
 
 async function main(): Promise<void> {
   let options: ReturnType<typeof parseArgs>;
@@ -9,6 +9,8 @@ async function main(): Promise<void> {
     options = parseArgs({
       options: {
         input: { type: "string", short: "i" },
+        generate: { type: "boolean" },
+        seed: { type: "string" },
         help: { type: "boolean", short: "h" },
       },
       allowPositionals: false,
@@ -19,13 +21,24 @@ async function main(): Promise<void> {
 
   if (options.values.help) {
     process.stdout.write(
-      "Usage: random-api --input <file.json>\nExtract JSON key paths locally. No network requests are made.\n",
+      [
+        "Usage: random-api --input <file.json> [--generate [--seed <text>]]",
+        "By default, extract JSON key paths locally.",
+        "--generate replaces primitive values and preserves local JSON structure.",
+        '--seed sets reproducible output (default: "random-api").',
+        "No network requests are made. Original values are not copied.",
+        "Keys, array lengths and primitive types are preserved; this is not anonymization.",
+        "",
+      ].join("\n"),
     );
     return;
   }
 
   if (typeof options.values.input !== "string") {
     throw new Error("A JSON file is required. Use --input <file.json>.");
+  }
+  if (options.values.seed !== undefined && !options.values.generate) {
+    throw new Error("--seed requires --generate.");
   }
 
   let text: string;
@@ -42,9 +55,15 @@ async function main(): Promise<void> {
     throw new Error("Invalid JSON. Source content is omitted for privacy.");
   }
 
-  process.stdout.write(
-    `${JSON.stringify(extractKeyPaths(document), null, 2)}\n`,
-  );
+  const result = options.values.generate
+    ? generateSyntheticData(document, {
+        seed:
+          typeof options.values.seed === "string"
+            ? options.values.seed
+            : "random-api",
+      })
+    : extractKeyPaths(document);
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
 main().catch((error: unknown) => {

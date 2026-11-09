@@ -1,3 +1,9 @@
+export {
+  type GenerationOptions,
+  generateSyntheticData,
+  type JsonValue,
+} from "./generate.js";
+
 export type KeyPath = readonly string[];
 
 export function extractKeyPaths(input: unknown): KeyPath[] {

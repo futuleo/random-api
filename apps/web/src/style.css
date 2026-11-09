@@ -64,9 +64,28 @@ button {
 }
 
 button:focus-visible,
+input:focus-visible,
 textarea:focus-visible {
   outline: 3px solid #5479de;
   outline-offset: 3px;
+}
+
+input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px solid #adb8cb;
+  border-radius: 8px;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .privacy {

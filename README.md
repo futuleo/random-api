@@ -1,8 +1,9 @@
 # Random API
 
 A local-first synthetic data randomizer, starting with a TypeScript monorepo.
-The current scaffold extracts JSON key paths in the browser and CLI. Synthetic
-generation, export formats, LLM providers, and a desktop shell are not implemented yet.
+The browser and CLI extract JSON key paths and generate seeded synthetic JSON
+locally. The browser can download generated JSON. Field-aware generators,
+other export formats, LLM providers, and a desktop shell are not implemented yet.
 A separate Fastify REST application currently exposes a health endpoint only.
 
 ## Development
@@ -25,10 +26,42 @@ changing the core; live workspace-package rebuilds are not configured yet.
 pnpm cli --input ./example.json
 ```
 
-The CLI currently prints deduplicated key paths. Paths use arrays of segments so
+By default, the CLI prints deduplicated key paths. Paths use arrays of segments so
 literal dots in keys are not confused with nesting. Array indices and lengths
 are omitted, and keys from all array elements are merged. This keys-only catalog
 is not a full schema and cannot reconstruct array shapes.
+
+## Local generation
+
+Paste JSON into the web app, choose a seed, and select **Generate data**.
+**Download JSON** saves only the generated result. Editing input or seed clears
+the previous generated result; nothing is automatically persisted.
+
+```sh
+pnpm cli --input ./example.json --generate --seed demo
+```
+
+The CLI prints generated JSON to stdout; omit `--generate` for key inspection.
+The default seed is `random-api`. A seed without `--generate` is rejected.
+When redirecting output, do not overwrite the source file with shell redirection:
+the shell truncates the destination before the CLI reads it.
+
+`generateSyntheticData` in `packages/core` preserves object keys, nesting, array
+lengths, primitive types and nulls. It replaces strings with `synthetic_` tokens,
+numbers with integers from 0 to 999999, and booleans with seeded booleans.
+Empty arrays and objects stay empty. It does not infer email/date formats,
+numeric ranges, uniqueness, relationships or other domain constraints.
+
+Output is reproducible for the same seed, structure and property traversal order,
+independently of original string, numeric and boolean values. Types and array
+structure are inspected only locally and never sent to an LLM. Generation rejects
+non-JSON values, circular references, depth beyond 100 levels (root is level 0),
+and more than 100000 values including containers. These limits apply to generation,
+not the existing key inspector.
+
+This is not certified anonymization: keys and structure remain, nulls are retained,
+and generated booleans or numbers can coincidentally match input values.
+Do not treat the output as a guarantee that a document contains no personal data.
 
 ## Architecture
 
@@ -36,7 +69,7 @@ is not a full schema and cannot reconstruct array shapes.
 apps/web           React + Vite; local browser UI
 apps/cli           Node.js CLI; native argument parsing
 apps/api           Fastify REST backend; independent deployment
-packages/core      Pure, platform-independent JSON analysis; future generators
+packages/core      Pure, platform-independent JSON analysis and seeded generation
 packages/llm       Keys-only serialization; future provider adapters
 ```
 
@@ -70,7 +103,7 @@ The intended desktop application is a Tauri 2 shell reusing the web interface,
 not a separate generator. Rust and desktop build tooling will be introduced when
 that application is implemented.
 
-For the next feature layers, keep full shape/type inference and seeded synthetic
+For the next feature layers, keep richer shape/type inference and field-aware
 generation local to `core`; let LLMs suggest validated generator configurations
 from key names only. Provider responses must never be executed as code.
 
@@ -101,3 +134,15 @@ installed on the execution host; pnpm provisions the pinned runtime for scripts.
 GitHub Actions runs formatting/linting, strict type checking, tests, and production
 builds with the same `pnpm check` command. No `/init` command is required: the
 repository instructions and executable setup are version-controlled files.
+
+Two repository custom-agent profiles live in `.github/agents`: `developer` for
+implementation and `reviewer` for read-only review. Both follow `AGENTS.md` and
+inherit the host's selected model. The reviewer has only read/search tools;
+validation commands belong to the developer or coordinating session.
+
+Select these profiles in a host that supports repository custom agents. They do
+not start automatically or enable background orchestration. Use one session for
+tightly coupled work; split only independent tasks with non-overlapping file
+ownership, and have the coordinator integrate results and run `pnpm check`.
+An already running host may need to reload repository customizations before the
+new profiles appear.
