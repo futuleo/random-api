@@ -13,6 +13,10 @@ import {
   rendererPolicy,
   secureWebPreferences,
 } from "./security.js";
+import {
+  type GenerationSmokeStage,
+  verifyGenerationAndExports,
+} from "./smoke.js";
 
 const smokeTest = process.argv.includes("--smoke-test");
 app.enableSandbox();
@@ -20,7 +24,9 @@ app.enableSandbox();
 let window: BrowserWindow | null = null;
 let finishing = false;
 let smokeTimeout: ReturnType<typeof setTimeout> | undefined;
+let cleanupSmokeArtifacts: (() => void) | undefined;
 type SmokeStage =
+  | GenerationSmokeStage
   | "application startup"
   | "window creation"
   | "local page loading"
@@ -37,6 +43,12 @@ function finishSmoke(success: boolean): void {
   if (finishing) return;
   finishing = true;
   clearTimeout(smokeTimeout);
+  try {
+    cleanupSmokeArtifacts?.();
+  } catch {
+    success = false;
+    smokeStage = "download cleanup";
+  }
   const message = success
     ? "Desktop smoke test passed.\n"
     : `Desktop smoke test failed: ${smokeStage}.\n`;
@@ -150,7 +162,20 @@ async function verifyRenderer(currentWindow: BrowserWindow): Promise<void> {
     })
   `);
   if (valid === "node-exposed") smokeStage = "renderer Node isolation";
-  finishSmoke(valid === "ready");
+  if (valid !== "ready") {
+    finishSmoke(false);
+    return;
+  }
+  await verifyGenerationAndExports(
+    currentWindow.webContents,
+    (stage) => {
+      smokeStage = stage;
+    },
+    (cleanup) => {
+      cleanupSmokeArtifacts = cleanup;
+    },
+  );
+  finishSmoke(true);
 }
 
 async function createWindow(): Promise<void> {
@@ -230,7 +255,7 @@ async function createWindow(): Promise<void> {
 }
 
 if (smokeTest) {
-  smokeTimeout = setTimeout(() => finishSmoke(false), 20_000);
+  smokeTimeout = setTimeout(() => finishSmoke(false), 30_000);
 }
 
 app.on("window-all-closed", () => {

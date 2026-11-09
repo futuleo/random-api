@@ -124,6 +124,11 @@ Electron is a thin native shell around `apps/web/dist`. There is no separate
 desktop renderer or duplicated component library. It works offline and does not
 need the REST service.
 
+The desktop smoke test exercises the real renderer with synthetic sentinel
+fixtures: field selection, valid generated formats, seed reproducibility and
+actual JSON/CSV downloads. Its owned scratch exports are removed after the test;
+failures report only static stage names, never source content.
+
 The renderer is sandboxed with context isolation, no Node integration or preload
 bridge, and blocked remote navigation/popups/permissions. The production web
 Content Security Policy blocks outgoing connections. Import uses the browser
