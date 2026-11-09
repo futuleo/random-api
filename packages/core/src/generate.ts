@@ -8,6 +8,7 @@ export type JsonValue =
 
 export interface GenerationOptions {
   readonly seed: string;
+  readonly fields?: readonly FieldGenerator[];
 }
 
 const MAX_DEPTH = 100;
@@ -20,6 +21,14 @@ export function generateSyntheticData(
   if (typeof options?.seed !== "string" || options.seed.length === 0) {
     throw new TypeError("A non-empty string seed is required.");
   }
+  if (options.seed.length > 256) {
+    throw new RangeError("Seed must contain at most 256 characters.");
+  }
+  const settings = parseFieldGenerators(options.fields ?? []);
+  const generators = new Map(
+    settings.map((field) => [JSON.stringify(field.path), field.generator]),
+  );
+  const matched = new Set<string>();
 
   let state = 2166136261;
   for (let index = 0; index < options.seed.length; index += 1) {
@@ -37,7 +46,7 @@ export function generateSyntheticData(
   const ancestors = new WeakSet<object>();
   let nodes = 0;
 
-  function generate(value: unknown, depth: number): JsonValue {
+  function generate(value: unknown, depth: number, path: KeyPath): JsonValue {
     nodes += 1;
     if (depth > MAX_DEPTH || nodes > MAX_NODES) {
       throw new RangeError(
@@ -45,6 +54,22 @@ export function generateSyntheticData(
       );
     }
 
+    const id = JSON.stringify(path);
+    const kind = generators.get(id);
+    if (kind !== undefined) matched.add(id);
+    if (kind !== undefined && kind !== "auto" && !Array.isArray(value)) {
+      if (value !== null && typeof value === "object") {
+        throw new TypeError("Field generators must target primitive values.");
+      }
+      if (
+        value !== null &&
+        (!["string", "number", "boolean"].includes(typeof value) ||
+          (typeof value === "number" && !Number.isFinite(value)))
+      ) {
+        throw new TypeError("Input must contain only JSON-compatible values.");
+      }
+      return generateFieldValue(kind, random);
+    }
     if (value === null) return null;
     if (typeof value === "string") {
       return `synthetic_${Math.floor(random() * 4294967296).toString(36)}`;
@@ -67,16 +92,28 @@ export function generateSyntheticData(
 
     ancestors.add(value);
     const result = Array.isArray(value)
-      ? Array.from(value, (item) => generate(item, depth + 1))
+      ? Array.from(value, (item) => generate(item, depth + 1, path))
       : Object.fromEntries(
           Object.entries(value).map(([key, child]) => [
             key,
-            generate(child, depth + 1),
+            generate(child, depth + 1, [...path, key]),
           ]),
         );
     ancestors.delete(value);
     return result;
   }
 
-  return generate(input, 0);
+  const result = generate(input, 0, []);
+  if (matched.size !== generators.size) {
+    throw new TypeError(
+      "A configured field path does not exist in this input.",
+    );
+  }
+  return result;
 }
+import {
+  type FieldGenerator,
+  generateFieldValue,
+  parseFieldGenerators,
+} from "./fields.js";
+import type { KeyPath } from "./index.js";

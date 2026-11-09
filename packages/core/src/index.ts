@@ -3,6 +3,18 @@ export {
   generateSyntheticData,
   type JsonValue,
 } from "./generate.js";
+export {
+  type FieldGenerator,
+  GENERATOR_KINDS,
+  type GeneratorKind,
+  inspectLocalFields,
+  isGeneratorKind,
+  type LocalField,
+  parseFieldGenerators,
+  suggestGenerator,
+} from "./fields.js";
+export { type ExportFormat, serializeOutput } from "./export.js";
+export { generateRecords, type RecordSettings } from "./records.js";
 
 export type KeyPath = readonly string[];
 
