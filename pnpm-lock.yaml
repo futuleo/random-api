@@ -75,12 +75,6 @@ importers:
 
   packages/core: {}
 
-  packages/llm:
-    dependencies:
-      '@random-api/core':
-        specifier: workspace:*
-        version: link:../core
-
 packages:
 
   '@babel/code-frame@7.29.7':

@@ -18,8 +18,6 @@
 
 - `packages/core`: platform-independent, local JSON analysis and seeded synthetic
   data generation. No networking, filesystem, UI, environment variables, or providers.
-- `packages/llm`: keys-only request construction and future provider adapters.
-  Never depend on application code.
 - `apps/web`: React/Vite browser application. Input stays in the browser.
 - `apps/cli`: Node.js command-line adapter. Keep domain logic in shared packages.
 - `apps/api`: Fastify REST adapter using the same core. Accept only key paths and

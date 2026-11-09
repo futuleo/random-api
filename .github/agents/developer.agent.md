@@ -10,7 +10,7 @@ tests and documentation. Use Node.js 24 and pnpm.
 
 Keep domain logic in packages/core, without networking, filesystem access,
 environment variables, UI or provider dependencies. Keep application-specific
-I/O in apps/web, apps/cli and apps/api. Keep packages/llm independent of apps.
+I/O in apps/web, apps/cli, apps/api and apps/desktop.
 
 Original values and any inferred shape/type metadata stay local. Future outbound
 LLM payloads must be constructed from an explicit keys-only allowlist; add

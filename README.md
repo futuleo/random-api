@@ -5,7 +5,8 @@ or import JSON, pick an object count and field generators, and export JSON or CS
 The website, CLI and
 Electron desktop application share one deterministic TypeScript engine.
 
-No accounts, provider keys, telemetry or source uploads. No LLM is connected.
+No accounts, API keys, telemetry or source uploads. All generation runs locally;
+no LLM or external generation service is used.
 This is a local MVP, not a certified anonymization product.
 
 ## Get started
@@ -209,14 +210,14 @@ apps/desktop       Secure Electron shell and unsigned packaging
 apps/cli           Node.js filesystem/terminal adapter
 apps/api           Optional loopback Fastify service
 packages/core      Pure field inspection, seeded generation and export
-packages/llm       Keys-only serialization; no provider integration
 ```
 
 Core has no networking, filesystem, UI, environment or provider dependencies.
-Local types and shapes must not be reused as LLM payloads. Future LLM requests
-may contain **key names and paths only**, not values, inferred types, lengths,
-examples or enums. `serializeKeysOnlyRequest` constructs an explicit allowlist;
-sentinel tests guard it.
+There is no LLM package or provider integration. Any future external integration
+requires an explicit product decision. Original values and locally inferred
+metadata must stay on the device. If LLM support is ever introduced, requests
+must use an explicit **key-names-and-paths-only** allowlist, never values,
+inferred types, lengths, examples or enums, with sentinel regression tests.
 
 Keys are assumed to be field names. Personal data used as a key is not protected.
 Generated output preserves identifying structure; nulls remain and generated
