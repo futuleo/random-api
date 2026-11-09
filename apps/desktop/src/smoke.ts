@@ -19,51 +19,61 @@ type GeneratedRecord = {
 export type GenerationSmokeStage =
   | "synthetic fixture entry"
   | "key-based generator suggestions"
-  | "seeded native generation"
+  | "counted native generation"
   | "generated field validation"
   | "download directory creation"
   | "JSON blob download"
   | "CSV blob download"
   | "download cleanup";
 
-export function validateGeneratedPreview(output: unknown): GeneratedRecord {
+function isGeneratedRecord(record: unknown): record is GeneratedRecord {
+  return (
+    record !== null &&
+    typeof record === "object" &&
+    !Array.isArray(record) &&
+    Object.keys(record).join(",") === "email,name,created_at,id" &&
+    "email" in record &&
+    typeof record.email === "string" &&
+    /^user\.[a-z0-9]+@example\.test$/.test(record.email) &&
+    "name" in record &&
+    typeof record.name === "string" &&
+    /^[A-Za-z]+ [A-Za-z]+$/.test(record.name) &&
+    "created_at" in record &&
+    typeof record.created_at === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(record.created_at) &&
+    Number.isFinite(Date.parse(record.created_at)) &&
+    "id" in record &&
+    typeof record.id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      record.id,
+    )
+  );
+}
+
+export function validateGeneratedPreview(output: unknown): GeneratedRecord[] {
   if (typeof output !== "string" || output.includes("DESKTOP_SMOKE_SENTINEL")) {
     throw new Error("Generated preview validation failed.");
   }
-  const record: unknown = JSON.parse(output);
+  const records: unknown = JSON.parse(output);
   if (
-    record === null ||
-    typeof record !== "object" ||
-    Array.isArray(record) ||
-    Object.keys(record).join(",") !== "email,name,created_at,id" ||
-    !("email" in record) ||
-    typeof record.email !== "string" ||
-    !/^user\.[a-z0-9]+@example\.test$/.test(record.email) ||
-    !("name" in record) ||
-    typeof record.name !== "string" ||
-    !/^[A-Za-z]+ [A-Za-z]+$/.test(record.name) ||
-    !("created_at" in record) ||
-    typeof record.created_at !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(record.created_at) ||
-    !Number.isFinite(Date.parse(record.created_at)) ||
-    !("id" in record) ||
-    typeof record.id !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
-      record.id,
-    )
+    !Array.isArray(records) ||
+    records.length !== 3 ||
+    !records.every(isGeneratedRecord)
   ) {
     throw new Error("Generated preview validation failed.");
   }
-  return record as GeneratedRecord;
+  return records;
 }
 
-export function expectedCsv(record: GeneratedRecord): string {
+export function expectedCsv(records: readonly GeneratedRecord[]): string {
+  const first = records[0];
+  if (!first) throw new Error("Missing generated records.");
   const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
   return [
-    Object.keys(record)
+    Object.keys(first)
       .map((key) => quote(JSON.stringify([key])))
       .join(","),
-    Object.values(record).map(quote).join(","),
+    ...records.map((record) => Object.values(record).map(quote).join(",")),
     "",
   ].join("\r\n");
 }
@@ -122,27 +132,29 @@ export async function verifyGenerationAndExports(
       .map((select) => select.value).join(",") === "email,name,date,uuid");
   })()`);
 
-  setStage("seeded native generation");
+  setStage("counted native generation");
   const output: unknown = await run(`(async () => {
     ${helpers}
-    const generate = async (seed) => {
-      setInput("#seed", seed, HTMLInputElement.prototype);
+    if (document.querySelector("#seed")) throw new Error("Seed must not be exposed in the studio.");
+    const generate = async (count) => {
+      setInput("#object-count", String(count), HTMLInputElement.prototype);
       await new Promise((resolve) => setTimeout(resolve, 50));
       clickButton("Generate data");
       await waitFor(() => document.querySelector(".output-code"));
       return document.querySelector(".output-code").textContent;
     };
-    const first = await generate("desktop-smoke-01");
-    const different = await generate("desktop-smoke-02");
-    const repeated = await generate("desktop-smoke-01");
-    if (first === different || first !== repeated) {
-      throw new Error("Seed reproducibility failed.");
+    const first = await generate(3);
+    const larger = await generate(5);
+    const fresh = await generate(3);
+    if (JSON.parse(first).length !== 3 || JSON.parse(larger).length !== 5 ||
+        JSON.parse(fresh).length !== 3 || first === fresh) {
+      throw new Error("Object count or fresh generation failed.");
     }
-    return repeated;
+    return fresh;
   })()`);
   setStage("generated field validation");
-  const record = validateGeneratedPreview(output);
-  const json = `${JSON.stringify(record, null, 2)}\n`;
+  const records = validateGeneratedPreview(output);
+  const json = `${JSON.stringify(records, null, 2)}\n`;
   if (output !== json) throw new Error("Generated JSON formatting failed.");
 
   setStage("download directory creation");
@@ -242,6 +254,6 @@ export async function verifyGenerationAndExports(
   setStage("JSON blob download");
   await verifyDownload("json", json);
   setStage("CSV blob download");
-  await verifyDownload("csv", expectedCsv(record));
+  await verifyDownload("csv", expectedCsv(records));
   setStage("download cleanup");
 }

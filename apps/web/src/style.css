@@ -308,36 +308,20 @@ h1 {
   display: flex;
   gap: 20px;
   align-items: center;
-  margin-bottom: 22px;
+  margin-bottom: 9px;
 }
-.control-label {
+.scenario-picker {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   margin-right: auto;
 }
-.small-icon {
-  display: grid;
-  place-items: center;
-  border: 1px solid #443853;
-  background: #30263d;
-  color: #c8b3ec;
-  border-radius: 7px;
-  width: 34px;
-  height: 34px;
-}
-.control-label strong {
-  display: block;
-  font-size: 11px;
+.scenario-current {
+  font-size: 12px;
   font-weight: 550;
 }
-.control-label :where(div) > span {
-  color: #9692a5;
-  font-size: 10px;
-  display: block;
-  margin-top: 5px;
-}
-.seed-control {
+.count-control {
   display: flex;
   align-items: center;
   border: 1px solid #3c3948;
@@ -347,20 +331,139 @@ h1 {
   gap: 12px;
   padding: 0 11px;
 }
-.seed-control > span {
+.count-control > span {
   font-size: 8px;
   color: #9b91ab;
   letter-spacing: 1px;
 }
-.seed-control input {
+.count-control input {
   background: transparent;
   border: 0;
   color: #dfd6ed;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
-  width: 100px;
+  font-size: 12px;
+  width: 65px;
   min-width: 0;
   padding: 5px 0;
+}
+.count-control:focus-within {
+  border-color: #b19bdd;
+  box-shadow: 0 0 0 2px #b19bdd22;
+}
+.count-control input:focus-visible {
+  outline: none;
+}
+.count-control input:disabled {
+  opacity: 0.4;
+}
+.count-note {
+  color: #9a92a7;
+  font-size: 9px;
+  line-height: 1.8;
+  margin: 0 0 22px;
+}
+.scenario-browser {
+  margin-bottom: 24px;
+}
+.scenario-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 20px 12px;
+}
+.scenario-toolbar p {
+  color: #a7a0b5;
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 0;
+  flex: 1;
+}
+.scenario-toolbar input {
+  width: 210px;
+  min-width: 0;
+  border: 1px solid #3c3747;
+  background: #111116;
+  color: #e5daef;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+}
+.scenario-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 20px 16px;
+}
+.scenario-categories button {
+  background: #1b1922;
+  color: #b3a9c2;
+  border: 1px solid #36303f;
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+.scenario-categories button[aria-pressed="true"] {
+  color: #eadbff;
+  background: #382b4a;
+  border-color: #6a5386;
+}
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 20px 20px;
+  max-height: 410px;
+  overflow: auto;
+}
+.scenario-card {
+  text-align: left;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #38313f;
+  background: #1b1821;
+  color: #d3c7e2;
+  border-radius: 7px;
+  padding: 15px;
+}
+.scenario-card:hover {
+  background: #2b2235;
+  border-color: #80649b;
+}
+.scenario-card[aria-pressed="true"] {
+  border-color: #a990cd;
+  background: #2b2235;
+}
+.scenario-category {
+  color: #b19ecb;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+}
+.scenario-category svg {
+  width: 12px;
+  height: 12px;
+}
+.scenario-card strong {
+  font-size: 13px;
+  font-weight: 550;
+  margin: 11px 0 8px;
+}
+.scenario-description {
+  color: #a99bb9;
+  font-size: 10px;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.scenario-field-count {
+  color: #8d7f9f;
+  font-size: 9px;
+  margin-top: auto;
 }
 .primary-button,
 .secondary-button {
@@ -928,14 +1031,8 @@ select {
     gap: 12px;
     padding: 14px;
   }
-  .control-label :where(div) > span {
-    display: none;
-  }
-  .control-label strong {
-    font-size: 10px;
-  }
-  .seed-control input {
-    width: 78px;
+  .count-control input {
+    width: 55px;
   }
   .primary-button kbd {
     display: none;
@@ -992,14 +1089,29 @@ select {
     margin-left: 65px;
     width: calc(100% - 65px);
   }
-  .control-label .small-icon {
-    display: none;
+  .control-strip {
+    flex-wrap: wrap;
   }
-  .control-label {
-    display: none;
+  .scenario-picker {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .seed-control {
+  .count-control {
     margin-right: auto;
+  }
+  .scenario-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scenario-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .scenario-toolbar input {
+    width: 100%;
   }
   .editor-grid,
   .guide-grid {
@@ -1062,12 +1174,24 @@ select {
     gap: 9px;
     padding: 13px;
   }
-  .seed-control {
+  .count-control {
     gap: 8px;
     padding: 0 8px;
   }
-  .seed-control input {
-    width: 76px;
+  .count-control input {
+    width: 60px;
+  }
+  .scenario-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .scenario-toolbar {
+    padding-inline: 14px;
+  }
+  .scenario-categories {
+    padding-inline: 14px;
+  }
+  .scenario-grid {
+    padding-inline: 14px;
   }
   .primary-button {
     padding: 9px 11px;

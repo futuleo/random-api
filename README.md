@@ -1,7 +1,8 @@
 # Random API
 
-A private, local-first synthetic data studio. Paste or import JSON, choose a
-generator for each field, and export fresh JSON or CSV. The website, CLI and
+A private, local-first synthetic data studio. Choose one of 30 testing scenarios
+or import JSON, pick an object count and field generators, and export JSON or CSV.
+The website, CLI and
 Electron desktop application share one deterministic TypeScript engine.
 
 No accounts, provider keys, telemetry or source uploads. No LLM is connected.
@@ -30,20 +31,32 @@ it after changes. Electron downloads a platform binary on installation/first run
 
 ## Data studio
 
-The studio includes a local sample; replace it with your own JSON or import a
-local `.json` file (up to 2 MiB). Nothing is automatically saved.
+The studio opens with the **Users** scenario. **Browse 30 scenarios** opens a
+searchable gallery organized into People, Commerce, Finance, Work, Content and
+Systems. Select a scenario to load its template and editable field mappings, or
+paste your own JSON/import a local `.json` file (up to 2 MiB).
+Nothing is automatically saved.
 
-1. Choose a seed. The same seed, structure, property order and settings give the
-   same result in web, desktop and CLI.
+1. Choose **Objects** (1–1000; default 10).
 2. Select generators in **Field generators**. **Suggest from keys** uses field
    names only and lets you review the choices before generating.
 3. Select **Generate data**. Preview JSON or CSV; copy or export the generated
-   output. Editing the source, seed or mappings clears stale output.
+   output. Each run produces fresh values automatically; no seed setting is
+   exposed. Editing the source, count or mappings clears stale output.
+
+An object template produces an array of exactly the requested size. For an input
+array of objects, samples cycle in their original order; nested arrays retain
+their shapes. Non-object roots, empty arrays and mixed arrays still support
+shape-preserving generation, but the object-count control is disabled.
+
+Presets are structural fixtures for common screens and workflows, not full
+business simulations. They do not enforce enum values, realistic quantity
+ranges, chronological ordering or relationships between records.
 
 Large previews show only the first 20000 characters to keep the interface
 responsive; copy and downloads still contain the full generated output.
 
-Auto mode preserves primitive types, nulls, keys, nesting and array lengths.
+Auto mode preserves primitive types, nulls, keys, nesting and nested array lengths.
 Explicit field generators may change a primitive's type (including null).
 Mappings apply to every occurrence of a path across arrays; containers cannot
 be replaced by scalar generators. Empty containers remain empty.
@@ -77,16 +90,27 @@ or run the built CLI directly with `node apps/cli/dist/index.js ...`.
 
 ```sh
 pnpm cli --help
+pnpm cli --list-scenarios
+pnpm cli --scenario users --count 30
+pnpm cli --scenario orders --count 100 --format csv --output orders.csv
 pnpm cli --input examples/input.json
-pnpm cli --input examples/input.json --generate --seed demo \
+pnpm cli --input examples/input.json --generate --count 30 --seed demo \
   --field '["id"]=uuid' --field '["email"]=email'
 pnpm cli --input examples/input.json --generate --fields examples/fields.json \
   --format csv --output synthetic.csv
 ```
 
 Without `--generate`, the CLI prints deduplicated key paths as segment arrays.
-`--seed`, `--field`, `--fields` and `--format` require `--generate`.
+`--scenario <id>` generates 10 objects by default without an input file;
+`--input` and `--scenario` are mutually exclusive. `--list-scenarios` lists all 30
+IDs, names, categories and descriptions as JSON and is used on its own.
+`--count` / `-n` accepts 1–1000 and requires an object or nonempty array of objects.
+Without `--count`, source-file generation preserves the original root shape.
+`--seed`, `--field`, `--fields`, `--format` and `--count` require `--generate` or
+`--scenario`. Explicit mappings override matching preset mappings.
 The default seed is `random-api` and default export format is `json`.
+Seed remains an optional CLI setting for reproducible test fixtures: the same
+seed, structure, property order, count and mappings produce the same result.
 `--output` / `-o` creates a **new** file and refuses to overwrite anything.
 Do not redirect stdout onto the input file: the shell truncates it before the
 CLI starts.
@@ -125,7 +149,8 @@ desktop renderer or duplicated component library. It works offline and does not
 need the REST service.
 
 The desktop smoke test exercises the real renderer with synthetic sentinel
-fixtures: field selection, valid generated formats, seed reproducibility and
+fixtures: field selection, valid generated formats, exact object counts, fresh
+values on repeated generation and
 actual JSON/CSV downloads. Its owned scratch exports are removed after the test;
 failures report only static stage names, never source content.
 

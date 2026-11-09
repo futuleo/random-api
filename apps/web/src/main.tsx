@@ -3,10 +3,15 @@ import {
   type FieldGenerator,
   GENERATOR_KINDS,
   type GeneratorKind,
+  generateSimilarObjects,
   generateSyntheticData,
+  getScenario,
   inspectLocalFields,
   isGeneratorKind,
+  isObjectTemplate,
   type JsonValue,
+  SCENARIOS,
+  type Scenario,
   serializeOutput,
   suggestGenerator,
 } from "@random-api/core";
@@ -14,28 +19,9 @@ import { StrictMode, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
-const EXAMPLE = JSON.stringify(
-  [
-    {
-      id: "replace-me",
-      name: "Example person",
-      email: "source@example.test",
-      created_at: "2024-01-01",
-      active: true,
-      profile: { score: 42 },
-    },
-    {
-      id: "replace-me-too",
-      name: "Another example",
-      email: "another@example.test",
-      created_at: "2024-02-01",
-      active: false,
-      profile: { score: 87 },
-    },
-  ],
-  null,
-  2,
-);
+const DEFAULT_SCENARIO = getScenario("users");
+const EXAMPLE = JSON.stringify(DEFAULT_SCENARIO.template, null, 2);
+const CATEGORIES = ["All", ...new Set(SCENARIOS.map((item) => item.category))];
 
 const LABELS: Record<GeneratorKind, string> = {
   auto: "Auto · preserve type",
@@ -125,8 +111,16 @@ function JsonCode({ text }: { text: string }) {
 
 function App() {
   const [input, setInput] = useState(EXAMPLE);
-  const [seed, setSeed] = useState("studio-01");
-  const [settings, setSettings] = useState<FieldGenerator[]>([]);
+  const [count, setCount] = useState("10");
+  const [settings, setSettings] = useState<readonly FieldGenerator[]>(
+    DEFAULT_SCENARIO.fields,
+  );
+  const [selectedScenario, setSelectedScenario] = useState<string | null>(
+    DEFAULT_SCENARIO.id,
+  );
+  const [showScenarios, setShowScenarios] = useState(false);
+  const [scenarioQuery, setScenarioQuery] = useState("");
+  const [category, setCategory] = useState("All");
   const [result, setResult] = useState<{
     value: JsonValue;
   } | null>(null);
@@ -162,6 +156,15 @@ function App() {
       };
     }
   }, [input]);
+  const objectTemplate =
+    analysis.error === null && isObjectTemplate(analysis.document);
+  const filteredScenarios = SCENARIOS.filter(
+    (item) =>
+      (category === "All" || item.category === category) &&
+      `${item.name} ${item.category} ${item.description}`
+        .toLowerCase()
+        .includes(scenarioQuery.trim().toLowerCase()),
+  );
 
   function invalidate() {
     setResult(null);
@@ -171,6 +174,14 @@ function App() {
   function updateSource(text: string) {
     setInput(text);
     setSettings([]);
+    setSelectedScenario(null);
+    invalidate();
+  }
+  function loadScenario(scenario: Scenario) {
+    setInput(JSON.stringify(scenario.template, null, 2));
+    setSettings(scenario.fields);
+    setSelectedScenario(scenario.id);
+    setShowScenarios(false);
     invalidate();
   }
   function choose(path: readonly string[], generator: GeneratorKind) {
@@ -189,13 +200,21 @@ function App() {
       return;
     }
     try {
-      const value = generateSyntheticData(analysis.document, {
-        seed,
+      const options = {
+        seed: crypto.randomUUID(),
         fields: settings,
-      });
+      };
+      const value = objectTemplate
+        ? generateSimilarObjects(analysis.document, {
+            ...options,
+            count: Number(count),
+          })
+        : generateSyntheticData(analysis.document, options);
       serializeOutput(value, format);
       setResult({ value });
-      setNotice("Fresh synthetic data. Generated entirely on your device.");
+      setNotice(
+        `${objectTemplate ? `${Number(count)} objects generated` : "Fresh synthetic data"}. Entirely on your device.`,
+      );
     } catch (failure) {
       setError(
         failure instanceof Error ? failure.message : "Could not generate data.",
@@ -351,7 +370,7 @@ function App() {
                   key-segment paths.
                 </p>
                 <pre>
-                  <code>{`pnpm cli --input users.json --generate \\\n  --field '["email"]=email' \\\n  --field '["id"]=uuid' --seed demo\n\npnpm cli --input users.json --generate \\\n  --format csv --output synthetic.csv`}</code>
+                  <code>{`pnpm cli --scenario users --count 100\npnpm cli --list-scenarios\n\npnpm cli --input users.json --generate \\\n  --count 50 --field '["email"]=email' \\\n  --format csv --output synthetic.csv`}</code>
                 </pre>
                 <p>
                   Use <code>--fields settings.json</code> for a JSON array of{" "}
@@ -379,14 +398,16 @@ function App() {
                 <Icon name="shield" />
                 <h2>Private, not a promise of anonymization.</h2>
                 <p>
-                  Keys, nesting and array lengths remain. Auto mode preserves
-                  primitive types and nulls. Choosing a generator explicitly may
-                  change a field's type. Email addresses use the reserved{" "}
+                  Keys, nesting and nested array lengths remain. Object count
+                  controls the root output array. Auto mode preserves primitive
+                  types and nulls. Choosing a generator explicitly may change a
+                  field's type. Email addresses use the reserved{" "}
                   <code>example.test</code> domain; names come from a small
-                  fictional fixture list. Dates are UTC in 2020–2029. Seeded
-                  UUIDs are for test data, not secrets. No LLM is connected. CSV
-                  uses JSON-path headers, nested arrays remain JSON cells, and
-                  spreadsheet formula prefixes are escaped.
+                  fictional fixture list. Dates are UTC in 2020–2029. Each run
+                  uses fresh randomness automatically; UUIDs are for test data,
+                  not secrets. No LLM is connected. CSV uses JSON-path headers,
+                  nested arrays remain JSON cells, and spreadsheet formula
+                  prefixes are escaped.
                 </p>
               </article>
             </section>
@@ -396,26 +417,39 @@ function App() {
                 className="control-strip"
                 aria-label="Generation settings"
               >
-                <div className="control-label">
-                  <span className="small-icon">
-                    <Icon name="spark" />
+                <div className="scenario-picker">
+                  <span className="scenario-current">
+                    {selectedScenario
+                      ? getScenario(selectedScenario).name
+                      : "Custom JSON"}
                   </span>
-                  <div>
-                    <strong>Make it your own</strong>
-                    <span>Predictable randomness, every time.</span>
-                  </div>
+                  <button
+                    type="button"
+                    className="text-button"
+                    aria-expanded={showScenarios}
+                    aria-controls="scenario-browser"
+                    onClick={() => setShowScenarios(!showScenarios)}
+                  >
+                    <Icon name="grid" />
+                    Browse {SCENARIOS.length} scenarios
+                  </button>
                 </div>
-                <label className="seed-control" htmlFor="seed">
-                  <span>SEED</span>
+                <label className="count-control" htmlFor="object-count">
+                  <span>OBJECTS</span>
                   <input
-                    id="seed"
-                    value={seed}
-                    maxLength={256}
+                    id="object-count"
+                    aria-label="Number of objects"
+                    type="number"
+                    min={1}
+                    max={1000}
+                    step={1}
+                    value={count}
+                    disabled={!objectTemplate}
+                    aria-describedby="object-count-note"
                     onChange={(event) => {
-                      setSeed(event.target.value);
+                      setCount(event.target.value);
                       invalidate();
                     }}
-                    spellCheck={false}
                     onKeyDown={(event) => {
                       if (event.key === "Enter") generate();
                     }}
@@ -430,6 +464,95 @@ function App() {
                   Generate data<kbd>↵</kbd>
                 </button>
               </section>
+              <p id="object-count-note" className="count-note">
+                {objectTemplate
+                  ? "Choose 1–1000 objects. Array samples cycle in order; nested arrays keep their shape. Each run is fresh."
+                  : "Object count applies to an object or a non-empty array of objects. Other JSON keeps its original shape."}
+              </p>
+              {showScenarios && (
+                <section
+                  id="scenario-browser"
+                  className="panel scenario-browser"
+                  aria-label="Scenario library"
+                >
+                  <div className="panel-heading">
+                    <div className="panel-title">
+                      <Icon name="grid" />
+                      <h2>Start with a scenario</h2>
+                      <span className="field-count">{SCENARIOS.length}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setShowScenarios(false)}
+                    >
+                      Close library
+                    </button>
+                  </div>
+                  <div className="scenario-toolbar">
+                    <p>
+                      Ready-made structures for common testing workflows. Choose
+                      one, then adjust the fields.
+                    </p>
+                    <input
+                      type="search"
+                      aria-label="Search scenarios"
+                      placeholder="Search scenarios..."
+                      value={scenarioQuery}
+                      onChange={(event) => setScenarioQuery(event.target.value)}
+                    />
+                  </div>
+                  <nav
+                    className="scenario-categories"
+                    aria-label="Scenario categories"
+                  >
+                    {CATEGORIES.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        aria-pressed={category === item}
+                        onClick={() => setCategory(item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </nav>
+                  <div className="scenario-grid">
+                    {filteredScenarios.map((scenario) => (
+                      <button
+                        type="button"
+                        className="scenario-card"
+                        key={scenario.id}
+                        aria-pressed={selectedScenario === scenario.id}
+                        onClick={() => loadScenario(scenario)}
+                      >
+                        <span className="scenario-category">
+                          {scenario.category}
+                          <Icon
+                            name={
+                              selectedScenario === scenario.id
+                                ? "check"
+                                : "arrow"
+                            }
+                          />
+                        </span>
+                        <strong>{scenario.name}</strong>
+                        <span className="scenario-description">
+                          {scenario.description}
+                        </span>
+                        <span className="scenario-field-count">
+                          {scenario.fields.length} fields · ready to generate
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {filteredScenarios.length === 0 && (
+                    <p className="field-empty">
+                      No scenarios match. Try another search or category.
+                    </p>
+                  )}
+                </section>
+              )}
               {error && (
                 <div role="alert" className="alert">
                   <strong>Let's fix that.</strong> {error}
@@ -447,7 +570,7 @@ function App() {
                       <button
                         type="button"
                         className="text-button"
-                        onClick={() => updateSource(EXAMPLE)}
+                        onClick={() => loadScenario(DEFAULT_SCENARIO)}
                       >
                         Load example
                       </button>
@@ -560,7 +683,7 @@ function App() {
                   <div className="panel-footer">
                     <span>
                       {result
-                        ? `${new TextEncoder().encode(output).length.toLocaleString()} bytes · ready to export`
+                        ? `${Array.isArray(result.value) ? `${result.value.length} ${objectTemplate ? "objects" : "items"} · ` : ""}${new TextEncoder().encode(output).length.toLocaleString()} bytes · ready to export`
                         : "Ready when you are"}
                     </span>
                     <button
@@ -709,8 +832,8 @@ function App() {
                 <Icon name="shield" />
                 <span>
                   Private by design, not certified anonymization. Keys and
-                  structure remain; generated values can coincidentally match
-                  originals.
+                  nested structure remain; generated values can coincidentally
+                  match originals.
                 </span>
               </p>
               <div role="status" className="notice" aria-live="polite">
