@@ -1,9 +1,51 @@
+import {
+  type FieldGenerator,
+  GENERATOR_KINDS,
+  generateRecords,
+  serializeOutput,
+} from "@random-api/core";
 import Fastify from "fastify";
+import { apiReference } from "./reference.ts";
 
 export function buildApp() {
   const app = Fastify({
     logger: false,
     bodyLimit: 64 * 1024,
+    ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
+  });
+
+  let windowStart = Date.now();
+  let requests = 0;
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header("cache-control", "no-store");
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-frame-options", "DENY");
+    reply.header("referrer-policy", "no-referrer");
+    if (Date.now() - windowStart >= 60_000) {
+      windowStart = Date.now();
+      requests = 0;
+    }
+    requests += 1;
+    if (requests > 120) {
+      return reply
+        .code(429)
+        .header("retry-after", "60")
+        .send({ error: "Local request limit reached." });
+    }
+    if (
+      !["127.0.0.1", "localhost", "::1"].includes(request.hostname) ||
+      (request.method === "POST" && request.headers.origin !== undefined)
+    ) {
+      return reply.code(403).send({ error: "Local clients only." });
+    }
+  });
+
+  app.get("/", async (_request, reply) => {
+    reply.header(
+      "content-security-policy",
+      "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    );
+    return reply.type("text/html; charset=utf-8").send(apiReference);
   });
 
   app.get("/health", {
@@ -18,6 +60,78 @@ export function buildApp() {
       },
     },
     handler: async () => ({ status: "ok" as const }),
+  });
+
+  app.post<{
+    Body: {
+      seed: string;
+      count: number;
+      format: "json" | "csv";
+      fields: FieldGenerator[];
+    };
+  }>("/generate", {
+    schema: {
+      body: {
+        type: "object",
+        additionalProperties: false,
+        required: ["seed", "count", "fields"],
+        properties: {
+          seed: { type: "string", minLength: 1, maxLength: 256 },
+          count: { type: "integer", minimum: 1, maximum: 1000 },
+          format: { type: "string", enum: ["json", "csv"], default: "json" },
+          fields: {
+            type: "array",
+            minItems: 1,
+            maxItems: 200,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["path", "generator"],
+              properties: {
+                path: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 99,
+                  items: { type: "string", maxLength: 256 },
+                },
+                generator: {
+                  type: "string",
+                  enum: GENERATOR_KINDS.filter((kind) => kind !== "auto"),
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      let output: string;
+      try {
+        const result = generateRecords({
+          seed: request.body.seed,
+          count: request.body.count,
+          fields: request.body.fields.map(({ path, generator }) => ({
+            path: path.map((segment) => segment),
+            generator,
+          })),
+        });
+        output = serializeOutput(result, request.body.format);
+      } catch (error) {
+        if (error instanceof TypeError || error instanceof RangeError) {
+          return reply
+            .code(400)
+            .send({ error: "Invalid generation settings." });
+        }
+        throw error;
+      }
+      return reply
+        .type(
+          request.body.format === "csv"
+            ? "text/csv; charset=utf-8"
+            : "application/json; charset=utf-8",
+        )
+        .send(output);
+    },
   });
 
   app.setNotFoundHandler((_request, reply) => {
