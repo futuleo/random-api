@@ -1,0 +1,18 @@
+instructions: |
+  Follow AGENTS.md for architecture, commands, and the keys-only privacy contract.
+  Use pnpm and Node.js 24. Keep original input values local to the device.
+
+scripts:
+  - name: Setup
+    command: pnpm install --frozen-lockfile
+    triggers:
+      - session.create
+  - name: Web
+    command: pnpm dev
+  - name: REST API
+    command: pnpm dev:api
+  - name: Check
+    command: pnpm check
+
+server_ready_pattern: 'Local:\s+(https?://\S+)'
+auto_open_in_browser: true

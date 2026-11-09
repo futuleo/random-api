@@ -1,0 +1,26 @@
+{
+  "name": "random-api",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @random-api/core build && pnpm --filter @random-api/web dev",
+    "dev:api": "pnpm --filter @random-api/core build && pnpm --filter @random-api/api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm --filter @random-api/core build && pnpm -r typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "pnpm --filter @random-api/core build && vitest run",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "cli": "pnpm --filter @random-api/core build && node apps/cli/src/index.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
+  }
+}

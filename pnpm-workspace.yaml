@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+useNodeVersion: 24.22.1
+
+allowBuilds:
+  esbuild: true

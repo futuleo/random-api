@@ -1,0 +1,16 @@
+{
+  "name": "@random-api/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@random-api/core": "workspace:*",
+    "fastify": "^5.6.1"
+  }
+}
