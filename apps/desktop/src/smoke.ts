@@ -17,6 +17,7 @@ type GeneratedRecord = {
 };
 
 export type GenerationSmokeStage =
+  | "scenario library and studio layout"
   | "synthetic fixture entry"
   | "key-based generator suggestions"
   | "counted native generation"
@@ -116,6 +117,30 @@ export async function verifyGenerationAndExports(
       input.dispatchEvent(new Event("input", { bubbles: true }));
     };
   `;
+  setStage("scenario library and studio layout");
+  await run(`(async () => {
+    ${helpers}
+    const picker = document.querySelector("#scenario");
+    if (!picker || picker.querySelectorAll("optgroup option").length !== 30) {
+      throw new Error("Missing scenario choices.");
+    }
+    picker.value = "orders";
+    picker.dispatchEvent(new Event("change", { bubbles: true }));
+    await waitFor(() => document.querySelector("#source").value.includes("total_cents"));
+    clickButton("Browse 30 scenarios");
+    await waitFor(() => document.querySelectorAll(".scenario-card").length === 30);
+    setInput('[aria-label="Search scenarios"]', "Support tickets", HTMLInputElement.prototype);
+    await waitFor(() => document.querySelectorAll(".scenario-card").length === 1);
+    document.querySelector(".scenario-card").click();
+    await waitFor(() => document.querySelector("#scenario").value === "support-tickets");
+    if (document.querySelector(".scenario-browser")) throw new Error("Scenario choice did not close the library.");
+    const flow = ["#source", ".field-panel", ".control-strip", ".output-panel .panel-heading", ".export-bar"]
+      .map((selector) => document.querySelector(selector));
+    if (flow.some((element) => !element) || flow.slice(1).some((element, index) =>
+        !(flow[index].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING))) {
+      throw new Error("Studio controls are out of sequence.");
+    }
+  })()`);
   const entry: unknown = await run(`(async () => {
     ${helpers}
     setInput("#source", ${JSON.stringify(JSON.stringify(fixture))}, HTMLTextAreaElement.prototype);

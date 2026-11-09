@@ -329,10 +329,10 @@ function App() {
           </div>
           <button
             type="button"
-            className="mobile-nav text-button"
+            className={`mobile-nav text-button ${view === "guide" ? "return-to-studio" : ""}`}
             onClick={() => setView(view === "studio" ? "guide" : "studio")}
           >
-            {view === "studio" ? "Developer guide" : "Data studio"}
+            {view === "studio" ? "Developer guide" : "Back to data studio"}
           </button>
           <span className="private-badge">
             <Icon name="shield" />
@@ -413,62 +413,6 @@ function App() {
             </section>
           ) : (
             <>
-              <section
-                className="control-strip"
-                aria-label="Generation settings"
-              >
-                <div className="scenario-picker">
-                  <span className="scenario-current">
-                    {selectedScenario
-                      ? getScenario(selectedScenario).name
-                      : "Custom JSON"}
-                  </span>
-                  <button
-                    type="button"
-                    className="text-button"
-                    aria-expanded={showScenarios}
-                    aria-controls="scenario-browser"
-                    onClick={() => setShowScenarios(!showScenarios)}
-                  >
-                    <Icon name="grid" />
-                    Browse {SCENARIOS.length} scenarios
-                  </button>
-                </div>
-                <label className="count-control" htmlFor="object-count">
-                  <span>OBJECTS</span>
-                  <input
-                    id="object-count"
-                    aria-label="Number of objects"
-                    type="number"
-                    min={1}
-                    max={1000}
-                    step={1}
-                    value={count}
-                    disabled={!objectTemplate}
-                    aria-describedby="object-count-note"
-                    onChange={(event) => {
-                      setCount(event.target.value);
-                      invalidate();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") generate();
-                    }}
-                  />
-                </label>
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={generate}
-                >
-                  <Icon name="spark" />
-                  Generate data<kbd>↵</kbd>
-                </button>
-              </section>
-              <p id="object-count-note" className="count-note">
-                {objectTemplate
-                  ? "Choose 1–1000 objects. Array samples cycle in order; nested arrays keep their shape. Each run is fresh."
-                  : "Object count applies to an object or a non-empty array of objects. Other JSON keeps its original shape."}
-              </p>
               {showScenarios && (
                 <section
                   id="scenario-browser"
@@ -559,273 +503,361 @@ function App() {
                 </div>
               )}
               <section className="editor-grid" aria-label="JSON workspace">
-                <article className="panel editor-panel">
-                  <div className="panel-heading">
-                    <div className="panel-title">
-                      <span className="step">01</span>
-                      <h2>Source JSON</h2>
-                      <span className="tag">INPUT</span>
+                <div className="source-column">
+                  <article className="panel editor-panel">
+                    <div className="panel-heading">
+                      <div className="panel-title">
+                        <span className="step">01</span>
+                        <h2>Source JSON</h2>
+                        <span className="tag">INPUT</span>
+                      </div>
+                      <div className="panel-tools">
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => loadScenario(DEFAULT_SCENARIO)}
+                        >
+                          Load example
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label="Import JSON file"
+                          onClick={() => upload.current?.click()}
+                        >
+                          <Icon name="download" />
+                        </button>
+                        <input
+                          ref={upload}
+                          className="visually-hidden"
+                          type="file"
+                          accept=".json,application/json"
+                          aria-label="Choose local JSON file"
+                          onChange={(event) => {
+                            void loadFile(event.target.files?.[0]);
+                            event.target.value = "";
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className="panel-tools">
+                    <div className="scenario-picker">
+                      <label htmlFor="scenario">
+                        <span>START WITH A SCENARIO</span>
+                        <select
+                          id="scenario"
+                          value={selectedScenario ?? ""}
+                          onChange={(event) => {
+                            if (event.target.value)
+                              loadScenario(getScenario(event.target.value));
+                          }}
+                        >
+                          <option value="" disabled>
+                            Custom JSON
+                          </option>
+                          {CATEGORIES.filter((item) => item !== "All").map(
+                            (group) => (
+                              <optgroup key={group} label={group}>
+                                {SCENARIOS.filter(
+                                  (scenario) => scenario.category === group,
+                                ).map((scenario) => (
+                                  <option key={scenario.id} value={scenario.id}>
+                                    {scenario.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ),
+                          )}
+                        </select>
+                      </label>
                       <button
                         type="button"
                         className="text-button"
-                        onClick={() => loadScenario(DEFAULT_SCENARIO)}
+                        aria-expanded={showScenarios}
+                        aria-controls="scenario-browser"
+                        onClick={() => setShowScenarios(!showScenarios)}
                       >
-                        Load example
+                        <Icon name="grid" />
+                        Browse {SCENARIOS.length} scenarios
+                      </button>
+                    </div>
+                    <div className="code-editor">
+                      <div className="line-numbers" aria-hidden="true">
+                        {Array.from(
+                          { length: Math.min(input.split("\n").length, 200) },
+                          (_, index) => index + 1,
+                        ).map((line) => (
+                          <span key={line}>{line}</span>
+                        ))}
+                      </div>
+                      <textarea
+                        id="source"
+                        aria-label="Your JSON"
+                        value={input}
+                        onChange={(event) => updateSource(event.target.value)}
+                        onScroll={(event) => {
+                          const numbers =
+                            event.currentTarget.previousElementSibling;
+                          if (numbers)
+                            numbers.scrollTop = event.currentTarget.scrollTop;
+                        }}
+                        spellCheck={false}
+                      />
+                    </div>
+                    <div className="panel-footer">
+                      <span>
+                        <span
+                          className={`status-dot ${analysis.error ? "warning" : ""}`}
+                        />
+                        {analysis.error ? "Awaiting valid JSON" : "Valid JSON"}
+                      </span>
+                      <span>
+                        Never leaves your device <Icon name="shield" />
+                      </span>
+                    </div>
+                  </article>
+                  <section
+                    className="panel field-panel"
+                    aria-label="Field generators"
+                  >
+                    <div className="panel-heading">
+                      <div className="panel-title">
+                        <span className="step">02</span>
+                        <h2>Field generators</h2>
+                        <span className="field-count">
+                          {analysis.fields.length}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={
+                          analysis.fields.length === 0 ||
+                          analysis.fields.length > 200
+                        }
+                        onClick={() => {
+                          setSettings(
+                            analysis.fields.flatMap(({ path }) => {
+                              const generator = suggestGenerator(path);
+                              return generator === "auto"
+                                ? []
+                                : [{ path, generator }];
+                            }),
+                          );
+                          invalidate();
+                        }}
+                      >
+                        <Icon name="spark" />
+                        Suggest from keys
+                      </button>
+                    </div>
+                    <div className="field-intro">
+                      Pick a generator for each field.
+                      <span>Suggestions use names, never values.</span>
+                    </div>
+                    {analysis.fields.length === 0 ? (
+                      <p className="field-empty">
+                        Add valid JSON with primitive fields to configure
+                        generators.
+                      </p>
+                    ) : analysis.fields.length > 200 ? (
+                      <p className="field-empty">
+                        More than 200 fields: auto generation remains available;
+                        custom mappings are limited to 200.
+                      </p>
+                    ) : (
+                      <div className="fields-table">
+                        <div className="field-table-heading">
+                          <span>FIELD PATH</span>
+                          <span>LOCAL TYPE</span>
+                          <span>GENERATOR</span>
+                        </div>
+                        {analysis.fields.map(({ path, types }) => (
+                          <div className="field-row" key={JSON.stringify(path)}>
+                            <code title={JSON.stringify(path)}>
+                              <span className="field-symbol">#</span>
+                              {path.length === 0
+                                ? "(root value)"
+                                : JSON.stringify(path)}
+                            </code>
+                            <span className="type-badge">
+                              {types.join(" / ")}
+                            </span>
+                            <label className="generator-select">
+                              <span className="visually-hidden">
+                                Generator for {JSON.stringify(path)}
+                              </span>
+                              <select
+                                value={
+                                  settings.find(
+                                    (setting) =>
+                                      JSON.stringify(setting.path) ===
+                                      JSON.stringify(path),
+                                  )?.generator ?? "auto"
+                                }
+                                onChange={(event) => {
+                                  if (isGeneratorKind(event.target.value))
+                                    choose(path, event.target.value);
+                                }}
+                              >
+                                {GENERATOR_KINDS.map((kind) => (
+                                  <option key={kind} value={kind}>
+                                    {LABELS[kind]}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </div>
+                <div className="output-column">
+                  <article className="panel editor-panel output-panel">
+                    <section
+                      className="control-strip"
+                      aria-label="Generation settings"
+                    >
+                      <label className="count-control" htmlFor="object-count">
+                        <span>OBJECTS</span>
+                        <input
+                          id="object-count"
+                          aria-label="Number of objects"
+                          type="number"
+                          min={1}
+                          max={1000}
+                          step={1}
+                          value={count}
+                          disabled={!objectTemplate}
+                          aria-describedby="object-count-note"
+                          onChange={(event) => {
+                            setCount(event.target.value);
+                            invalidate();
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") generate();
+                          }}
+                        />
+                      </label>
+                      <button
+                        className="primary-button"
+                        type="button"
+                        onClick={generate}
+                      >
+                        <Icon name="spark" />
+                        Generate data<kbd>↵</kbd>
+                      </button>
+                    </section>
+                    <p id="object-count-note" className="count-note">
+                      {objectTemplate
+                        ? "1–1000 objects. Each run is fresh; nested arrays keep their shape."
+                        : "Object count requires an object template. Other JSON keeps its shape."}
+                    </p>
+                    <div className="panel-heading">
+                      <div className="panel-title">
+                        <span className="step">03</span>
+                        <h2>Synthetic output</h2>
+                      </div>
+                      <fieldset
+                        className="segmented"
+                        aria-label="Preview format"
+                      >
+                        {(["json", "csv"] as const).map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={format === value}
+                            onClick={() => setFormat(value)}
+                          >
+                            {value.toUpperCase()}
+                          </button>
+                        ))}
+                      </fieldset>
+                    </div>
+                    {result ? (
+                      <pre className="output-code">
+                        {output.length > PREVIEW_LIMIT && (
+                          <span className="preview-note">
+                            Preview limited to 20000 characters. Copy and
+                            exports include the full result.{"\n\n"}
+                          </span>
+                        )}
+                        {format === "json" ? (
+                          <JsonCode text={output.slice(0, PREVIEW_LIMIT)} />
+                        ) : (
+                          <code>{output.slice(0, PREVIEW_LIMIT)}</code>
+                        )}
+                      </pre>
+                    ) : (
+                      <div className="empty-output">
+                        <div className="empty-art">
+                          <Icon name="spark" />
+                        </div>
+                        <h3>A fresh start for your data.</h3>
+                        <p>
+                          Your structure, with a new identity.
+                          <br />
+                          Choose your generators and hit generate.
+                        </p>
+                        <span className="empty-hint">
+                          <span />
+                          100% local. No source values uploaded.
+                        </span>
+                      </div>
+                    )}
+                    <div className="panel-footer">
+                      <span>
+                        {result
+                          ? `${Array.isArray(result.value) ? `${result.value.length} ${objectTemplate ? "objects" : "items"} · ` : ""}${new TextEncoder().encode(output).length.toLocaleString()} bytes · ready to export`
+                          : "Ready when you are"}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-button copy-button"
+                        onClick={() => void copy()}
+                        disabled={!result}
+                      >
+                        <Icon name="copy" />
+                        Copy output
+                      </button>
+                    </div>
+                  </article>
+                  <section
+                    className="export-bar"
+                    aria-label="Export generated data"
+                  >
+                    <div>
+                      <span className="export-icon">
+                        <Icon name="download" />
+                      </span>
+                      <div>
+                        <strong>Good to go. Yours to keep.</strong>
+                        <p>
+                          Export only the generated data. Your source stays put.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="export-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={!result}
+                        onClick={() => download("json")}
+                      >
+                        <Icon name="download" />
+                        Export JSON
                       </button>
                       <button
                         type="button"
-                        className="icon-button"
-                        aria-label="Import JSON file"
-                        onClick={() => upload.current?.click()}
+                        className="secondary-button"
+                        disabled={!result}
+                        onClick={() => download("csv")}
                       >
                         <Icon name="download" />
+                        Export CSV
                       </button>
-                      <input
-                        ref={upload}
-                        className="visually-hidden"
-                        type="file"
-                        accept=".json,application/json"
-                        aria-label="Choose local JSON file"
-                        onChange={(event) => {
-                          void loadFile(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
                     </div>
-                  </div>
-                  <div className="code-editor">
-                    <div className="line-numbers" aria-hidden="true">
-                      {Array.from(
-                        { length: Math.min(input.split("\n").length, 200) },
-                        (_, index) => index + 1,
-                      ).map((line) => (
-                        <span key={line}>{line}</span>
-                      ))}
-                    </div>
-                    <textarea
-                      id="source"
-                      aria-label="Your JSON"
-                      value={input}
-                      onChange={(event) => updateSource(event.target.value)}
-                      onScroll={(event) => {
-                        const numbers =
-                          event.currentTarget.previousElementSibling;
-                        if (numbers)
-                          numbers.scrollTop = event.currentTarget.scrollTop;
-                      }}
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="panel-footer">
-                    <span>
-                      <span
-                        className={`status-dot ${analysis.error ? "warning" : ""}`}
-                      />
-                      {analysis.error ? "Awaiting valid JSON" : "Valid JSON"}
-                    </span>
-                    <span>
-                      Never leaves your device <Icon name="shield" />
-                    </span>
-                  </div>
-                </article>
-                <article className="panel editor-panel output-panel">
-                  <div className="panel-heading">
-                    <div className="panel-title">
-                      <span className="step">02</span>
-                      <h2>Synthetic output</h2>
-                    </div>
-                    <fieldset className="segmented" aria-label="Preview format">
-                      {(["json", "csv"] as const).map((value) => (
-                        <button
-                          key={value}
-                          type="button"
-                          aria-pressed={format === value}
-                          onClick={() => setFormat(value)}
-                        >
-                          {value.toUpperCase()}
-                        </button>
-                      ))}
-                    </fieldset>
-                  </div>
-                  {result ? (
-                    <pre className="output-code">
-                      {output.length > PREVIEW_LIMIT && (
-                        <span className="preview-note">
-                          Preview limited to 20000 characters. Copy and exports
-                          include the full result.{"\n\n"}
-                        </span>
-                      )}
-                      {format === "json" ? (
-                        <JsonCode text={output.slice(0, PREVIEW_LIMIT)} />
-                      ) : (
-                        <code>{output.slice(0, PREVIEW_LIMIT)}</code>
-                      )}
-                    </pre>
-                  ) : (
-                    <div className="empty-output">
-                      <div className="empty-art">
-                        <Icon name="spark" />
-                      </div>
-                      <h3>A fresh start for your data.</h3>
-                      <p>
-                        Your structure, with a new identity.
-                        <br />
-                        Choose your generators and hit generate.
-                      </p>
-                      <span className="empty-hint">
-                        <span />
-                        100% local. No source values uploaded.
-                      </span>
-                    </div>
-                  )}
-                  <div className="panel-footer">
-                    <span>
-                      {result
-                        ? `${Array.isArray(result.value) ? `${result.value.length} ${objectTemplate ? "objects" : "items"} · ` : ""}${new TextEncoder().encode(output).length.toLocaleString()} bytes · ready to export`
-                        : "Ready when you are"}
-                    </span>
-                    <button
-                      type="button"
-                      className="text-button copy-button"
-                      onClick={() => void copy()}
-                      disabled={!result}
-                    >
-                      <Icon name="copy" />
-                      Copy output
-                    </button>
-                  </div>
-                </article>
-              </section>
-              <section
-                className="panel field-panel"
-                aria-label="Field generators"
-              >
-                <div className="panel-heading">
-                  <div className="panel-title">
-                    <Icon name="grid" />
-                    <h2>Field generators</h2>
-                    <span className="field-count">
-                      {analysis.fields.length}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-button"
-                    disabled={
-                      analysis.fields.length === 0 ||
-                      analysis.fields.length > 200
-                    }
-                    onClick={() => {
-                      setSettings(
-                        analysis.fields.flatMap(({ path }) => {
-                          const generator = suggestGenerator(path);
-                          return generator === "auto"
-                            ? []
-                            : [{ path, generator }];
-                        }),
-                      );
-                      invalidate();
-                    }}
-                  >
-                    <Icon name="spark" />
-                    Suggest from keys
-                  </button>
-                </div>
-                <div className="field-intro">
-                  A little direction goes a long way. Pick a generator for each
-                  field.<span>Suggestions use names, never values.</span>
-                </div>
-                {analysis.fields.length === 0 ? (
-                  <p className="field-empty">
-                    Add valid JSON with primitive fields to configure
-                    generators.
-                  </p>
-                ) : analysis.fields.length > 200 ? (
-                  <p className="field-empty">
-                    More than 200 fields: auto generation remains available;
-                    custom mappings are limited to 200.
-                  </p>
-                ) : (
-                  <div className="fields-table">
-                    <div className="field-table-heading">
-                      <span>FIELD PATH</span>
-                      <span>LOCAL TYPE</span>
-                      <span>GENERATOR</span>
-                    </div>
-                    {analysis.fields.map(({ path, types }) => (
-                      <div className="field-row" key={JSON.stringify(path)}>
-                        <code title={JSON.stringify(path)}>
-                          <span className="field-symbol">#</span>
-                          {path.length === 0
-                            ? "(root value)"
-                            : JSON.stringify(path)}
-                        </code>
-                        <span className="type-badge">{types.join(" / ")}</span>
-                        <label className="generator-select">
-                          <span className="visually-hidden">
-                            Generator for {JSON.stringify(path)}
-                          </span>
-                          <select
-                            value={
-                              settings.find(
-                                (setting) =>
-                                  JSON.stringify(setting.path) ===
-                                  JSON.stringify(path),
-                              )?.generator ?? "auto"
-                            }
-                            onChange={(event) => {
-                              if (isGeneratorKind(event.target.value))
-                                choose(path, event.target.value);
-                            }}
-                          >
-                            {GENERATOR_KINDS.map((kind) => (
-                              <option key={kind} value={kind}>
-                                {LABELS[kind]}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-              <section
-                className="export-bar"
-                aria-label="Export generated data"
-              >
-                <div>
-                  <span className="export-icon">
-                    <Icon name="download" />
-                  </span>
-                  <div>
-                    <strong>Good to go. Yours to keep.</strong>
-                    <p>
-                      Export only the generated data. Your source stays put.
-                    </p>
-                  </div>
-                </div>
-                <div className="export-actions">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={!result}
-                    onClick={() => download("json")}
-                  >
-                    <Icon name="download" />
-                    Export JSON
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={!result}
-                    onClick={() => download("csv")}
-                  >
-                    <Icon name="download" />
-                    Export CSV
-                  </button>
+                  </section>
                 </div>
               </section>
               <p className="privacy-note">

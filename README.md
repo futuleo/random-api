@@ -32,18 +32,24 @@ it after changes. Electron downloads a platform binary on installation/first run
 
 ## Data studio
 
-The studio opens with the **Users** scenario. **Browse 30 scenarios** opens a
+The studio opens with the **Users** scenario. A persistent scenario selector
+inside **Source JSON** lists all 30 presets. **Browse 30 scenarios** opens a
 searchable gallery organized into People, Commerce, Finance, Work, Content and
 Systems. Select a scenario to load its template and editable field mappings, or
 paste your own JSON/import a local `.json` file (up to 2 MiB).
 Nothing is automatically saved.
 
-1. Choose **Objects** (1–1000; default 10).
-2. Select generators in **Field generators**. **Suggest from keys** uses field
+1. Choose a scenario or enter your source JSON.
+2. Select generators in **Field generators** below the source. **Suggest from keys** uses field
    names only and lets you review the choices before generating.
-3. Select **Generate data**. Preview JSON or CSV; copy or export the generated
+3. Choose **Objects** (1–1000; default 10) and select **Generate data** in the
+   output panel. Preview JSON or CSV; copy or export the generated
    output. Each run produces fresh values automatically; no seed setting is
    exposed. Editing the source, count or mappings clears stale output.
+
+On wide screens, source and field settings sit on the left; generation, output
+and exports sit on the right. Narrow screens follow the same reading and keyboard
+order: source, fields, generation, output, exports.
 
 An object template produces an array of exactly the requested size. For an input
 array of objects, samples cycle in their original order; nested arrays retain
