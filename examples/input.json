@@ -1,0 +1,16 @@
+[
+  {
+    "id": "SENTINEL_ID",
+    "name": "SENTINEL_NAME",
+    "email": "SENTINEL_EMAIL",
+    "created_at": "SENTINEL_DATE",
+    "active": true
+  },
+  {
+    "id": "SENTINEL_ID_TWO",
+    "name": "SENTINEL_NAME_TWO",
+    "email": "SENTINEL_EMAIL_TWO",
+    "created_at": "SENTINEL_DATE_TWO",
+    "active": false
+  }
+]

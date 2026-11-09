@@ -47,6 +47,7 @@ const LABELS: Record<GeneratorKind, string> = {
   number: "Number",
   boolean: "Boolean",
 };
+const PREVIEW_LIMIT = 20_000;
 
 function Icon({
   name,
@@ -527,10 +528,16 @@ function App() {
                   </div>
                   {result ? (
                     <pre className="output-code">
+                      {output.length > PREVIEW_LIMIT && (
+                        <span className="preview-note">
+                          Preview limited to 20000 characters. Copy and exports
+                          include the full result.{"\n\n"}
+                        </span>
+                      )}
                       {format === "json" ? (
-                        <JsonCode text={output} />
+                        <JsonCode text={output.slice(0, PREVIEW_LIMIT)} />
                       ) : (
-                        <code>{output}</code>
+                        <code>{output.slice(0, PREVIEW_LIMIT)}</code>
                       )}
                     </pre>
                   ) : (

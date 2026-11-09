@@ -6,6 +6,10 @@
 - Install with `pnpm install --frozen-lockfile`.
 - Start the website with `pnpm dev`.
 - Start the standalone REST backend with `pnpm dev:api`.
+- Start the Electron desktop app with `pnpm dev:desktop`; it uses the same
+  React distribution as the website.
+- Run `pnpm test:desktop` for a real Electron smoke test and
+  `pnpm package:desktop` for an unsigned application directory.
 - Run `pnpm check` before handing off code changes. For focused iteration, use
   `pnpm test -- <test-file>`, `pnpm typecheck`, or `pnpm lint`.
 - Run `pnpm format` after editing files.
@@ -19,10 +23,12 @@
 - `apps/web`: React/Vite browser application. Input stays in the browser.
 - `apps/cli`: Node.js command-line adapter. Keep domain logic in shared packages.
 - `apps/api`: Fastify REST adapter using the same core. Accept only key paths and
-  explicit generation settings in future generation endpoints, never original
+  explicit generation settings in generation endpoints, never original
   JSON documents. Keep the web app usable without the backend.
-- A future Tauri desktop shell will reuse the web UI and shared packages. Do not
-  add a separate desktop implementation of domain logic.
+- `apps/desktop`: Electron shell reusing the built React web UI. Keep renderer
+  sandboxing and context isolation enabled, Node integration disabled, and
+  navigation, popups and unneeded permissions blocked. Do not duplicate domain
+  logic or introduce renderer access to Node or arbitrary filesystem paths.
 - Use ESM, strict TypeScript, and `workspace:*` for internal dependencies.
 - Keep tooling simple; do not introduce a task orchestrator until it is needed.
 
@@ -43,8 +49,14 @@
 - Add regression tests using sentinel input values for every outbound payload
   change. Never include real customer data in fixtures.
 - Surface failures without logging the source document, source snippets, or secrets.
-- The REST scaffold is loopback-only and has no authentication or generation
-  endpoints yet. Do not expose it publicly without authentication and resource limits.
+- The REST adapter is loopback-only, bounded and unauthenticated. Its generation
+  endpoint accepts only field paths and explicit generator settings. Do not
+  expose it publicly without authentication and deployment-specific protection.
+- Field type inspection and source array lengths are local-only metadata. Do
+  not reuse them in outbound requests. CSV and JSON exports must serialize
+  generated output, not the source; neutralize spreadsheet formula prefixes.
+- Seeded UUIDs and the generator PRNG are test-data utilities, not security
+  identifiers or credentials.
 
 ## Agent coordination
 

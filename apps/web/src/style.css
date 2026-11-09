@@ -648,6 +648,9 @@ textarea:focus-visible {
 .syntax-literal {
   color: #95bce3;
 }
+.preview-note {
+  color: #d3b879;
+}
 .field-panel {
   margin-bottom: 22px;
 }

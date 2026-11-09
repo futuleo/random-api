@@ -1,0 +1,6 @@
+[
+  { "path": ["id"], "generator": "uuid" },
+  { "path": ["name"], "generator": "name" },
+  { "path": ["email"], "generator": "email" },
+  { "path": ["created_at"], "generator": "date" }
+]

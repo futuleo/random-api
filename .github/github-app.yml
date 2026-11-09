@@ -9,6 +9,8 @@ scripts:
       - session.create
   - name: Web
     command: pnpm dev
+  - name: Desktop
+    command: pnpm dev:desktop
   - name: REST API
     command: pnpm dev:api
   - name: Check

@@ -1,8 +1,4 @@
-export {
-  type GenerationOptions,
-  generateSyntheticData,
-  type JsonValue,
-} from "./generate.js";
+export { type ExportFormat, serializeOutput } from "./export.js";
 export {
   type FieldGenerator,
   GENERATOR_KINDS,
@@ -13,7 +9,11 @@ export {
   parseFieldGenerators,
   suggestGenerator,
 } from "./fields.js";
-export { type ExportFormat, serializeOutput } from "./export.js";
+export {
+  type GenerationOptions,
+  generateSyntheticData,
+  type JsonValue,
+} from "./generate.js";
 export { generateRecords, type RecordSettings } from "./records.js";
 
 export type KeyPath = readonly string[];

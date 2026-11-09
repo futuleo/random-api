@@ -1,148 +1,207 @@
 # Random API
 
-A local-first synthetic data randomizer, starting with a TypeScript monorepo.
-The browser and CLI extract JSON key paths and generate seeded synthetic JSON
-locally. The browser can download generated JSON. Field-aware generators,
-other export formats, LLM providers, and a desktop shell are not implemented yet.
-A separate Fastify REST application currently exposes a health endpoint only.
+A private, local-first synthetic data studio. Paste or import JSON, choose a
+generator for each field, and export fresh JSON or CSV. The website, CLI and
+Electron desktop application share one deterministic TypeScript engine.
 
-## Development
+No accounts, provider keys, telemetry or source uploads. No LLM is connected.
+This is a local MVP, not a certified anonymization product.
 
-Use Node.js **24.22.1** (`.node-version`) and **pnpm 10.34.9**. Install pnpm if it
-is not available: `npm install --global pnpm@10.34.9`.
-`useNodeVersion` in `pnpm-workspace.yaml` also makes pnpm provision the pinned
-Node.js runtime for lifecycle and workspace scripts, independently of host shims.
+## Get started
+
+Use Node.js **24.22.1** (`.node-version`) and **pnpm 10.34.9**.
+If needed, install pnpm with `npm install --global pnpm@10.34.9`.
+`useNodeVersion` in `pnpm-workspace.yaml` provisions the pinned runtime for scripts.
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev
-pnpm check
+pnpm dev                # React website on loopback
+pnpm dev:desktop        # Electron app, using the same React UI
+pnpm dev:api            # optional REST service on 127.0.0.1:3000
+pnpm check              # formatting, lint, types, tests and production builds
+pnpm test:desktop       # build and run the actual Electron smoke test
+pnpm package:desktop    # unsigned app directory for the current platform
 ```
 
-`pnpm dev` builds the shared core and starts Vite on loopback. Restart it after
-changing the core; live workspace-package rebuilds are not configured yet.
+Web and desktop commands build their shared dependencies first. The web dev
+server does not watch shared-package output: restart it after changing `core`.
+The desktop command loads a production React build, not a remote dev URL; restart
+it after changes. Electron downloads a platform binary on installation/first run.
+
+## Data studio
+
+The studio includes a local sample; replace it with your own JSON or import a
+local `.json` file (up to 2 MiB). Nothing is automatically saved.
+
+1. Choose a seed. The same seed, structure, property order and settings give the
+   same result in web, desktop and CLI.
+2. Select generators in **Field generators**. **Suggest from keys** uses field
+   names only and lets you review the choices before generating.
+3. Select **Generate data**. Preview JSON or CSV; copy or export the generated
+   output. Editing the source, seed or mappings clears stale output.
+
+Large previews show only the first 20000 characters to keep the interface
+responsive; copy and downloads still contain the full generated output.
+
+Auto mode preserves primitive types, nulls, keys, nesting and array lengths.
+Explicit field generators may change a primitive's type (including null).
+Mappings apply to every occurrence of a path across arrays; containers cannot
+be replaced by scalar generators. Empty containers remain empty.
+
+| Generator | Output                                                    |
+| --------- | --------------------------------------------------------- |
+| `auto`    | Type-preserving synthetic token, integer, boolean or null |
+| `email`   | Seeded address in the reserved `example.test` domain      |
+| `name`    | Full name from a small fictional fixture list             |
+| `date`    | UTC ISO timestamp from 2020 through 2029                  |
+| `uuid`    | Seeded UUID in v4 format                                  |
+| `string`  | `synthetic_` token                                        |
+| `number`  | Integer from 0 to 999999                                  |
+| `boolean` | Seeded true/false                                         |
+
+These are test fixtures: names are not exhaustive, fields are generated
+independently, and uniqueness/foreign-key relationships are not guaranteed.
+Seeded UUIDs and the PRNG must not be used for secrets or security identifiers.
+
+Generation accepts at most 100 levels (root is level 0) and 100000 values,
+including containers. Seeds contain 1–256 characters. Custom settings are limited
+to 200 unique paths, each with at most 100 segments of up to 256 characters.
+Local field inspection is also bounded; key inspection alone is not a full schema.
+
+## CLI
+
+Machine-readable output goes to stdout; interactive terminal summaries go to
+stderr. Help is styled only in a TTY, and `NO_COLOR=1` disables ANSI color.
+For pipelines use `pnpm --silent cli ...` to suppress pnpm's own script banner,
+or run the built CLI directly with `node apps/cli/dist/index.js ...`.
 
 ```sh
-pnpm cli --input ./example.json
+pnpm cli --help
+pnpm cli --input examples/input.json
+pnpm cli --input examples/input.json --generate --seed demo \
+  --field '["id"]=uuid' --field '["email"]=email'
+pnpm cli --input examples/input.json --generate --fields examples/fields.json \
+  --format csv --output synthetic.csv
 ```
 
-By default, the CLI prints deduplicated key paths. Paths use arrays of segments so
-literal dots in keys are not confused with nesting. Array indices and lengths
-are omitted, and keys from all array elements are merged. This keys-only catalog
-is not a full schema and cannot reconstruct array shapes.
+Without `--generate`, the CLI prints deduplicated key paths as segment arrays.
+`--seed`, `--field`, `--fields` and `--format` require `--generate`.
+The default seed is `random-api` and default export format is `json`.
+`--output` / `-o` creates a **new** file and refuses to overwrite anything.
+Do not redirect stdout onto the input file: the shell truncates it before the
+CLI starts.
 
-## Local generation
+`--field` is repeatable and uses a JSON segment array followed by `=generator`.
+This keeps literal dots, equal signs and empty keys unambiguous. For more settings,
+`--fields` reads a local JSON array:
 
-Paste JSON into the web app, choose a seed, and select **Generate data**.
-**Download JSON** saves only the generated result. Editing input or seed clears
-the previous generated result; nothing is automatically persisted.
+```json
+[
+  { "path": ["id"], "generator": "uuid" },
+  { "path": ["profile", "email"], "generator": "email" }
+]
+```
+
+Duplicate, unknown, missing and container-targeting mappings fail explicitly.
+Error messages omit source documents, source snippets and input paths.
+
+## JSON and CSV
+
+JSON retains the generated shape. In CSV, a root array becomes rows; any other
+root becomes one row. Nested objects flatten to **JSON segment-array headers**,
+so `["profile","email"]` and `["profile.email"]` remain distinct. Nested arrays
+remain JSON-valued cells rather than silently expanding records.
+
+Columns are the union of paths across rows. Missing values and null produce empty
+cells. An empty root array produces an empty CSV. Cells use double-quote escaping
+and CRLF row endings. Formula-like cells (`=`, `+`, `-`, `@`, leading tab/CR,
+including whitespace-prefixed formulas) receive a leading apostrophe for
+spreadsheet safety; this intentionally changes those CSV cell values.
+
+## Electron desktop
+
+Electron is a thin native shell around `apps/web/dist`. There is no separate
+desktop renderer or duplicated component library. It works offline and does not
+need the REST service.
+
+The renderer is sandboxed with context isolation, no Node integration or preload
+bridge, and blocked remote navigation/popups/permissions. The production web
+Content Security Policy blocks outgoing connections. Import uses the browser
+file picker; exports contain generated data only.
 
 ```sh
-pnpm cli --input ./example.json --generate --seed demo
+pnpm package:desktop
+# apps/desktop/release/mac-arm64/Random API.app on Apple Silicon macOS
+
+# Platform-specific distributables, on appropriate build hosts:
+pnpm --filter @random-api/desktop package:mac
+pnpm --filter @random-api/desktop package:win
+pnpm --filter @random-api/desktop package:linux
 ```
 
-The CLI prints generated JSON to stdout; omit `--generate` for key inspection.
-The default seed is `random-api`. A seed without `--generate` is rejected.
-When redirecting output, do not overwrite the source file with shell redirection:
-the shell truncates the destination before the CLI reads it.
+Build `core` first when invoking an app-local packaging command directly.
+Packages are unsigned development artifacts. Notarization, Windows signing and
+automatic updates are not configured. Cross-platform packaging depends on the
+host toolchain; a macOS build is not proof of Windows/Linux runtime support.
 
-`generateSyntheticData` in `packages/core` preserves object keys, nesting, array
-lengths, primitive types and nulls. It replaces strings with `synthetic_` tokens,
-numbers with integers from 0 to 999999, and booleans with seeded booleans.
-Empty arrays and objects stay empty. It does not infer email/date formats,
-numeric ranges, uniqueness, relationships or other domain constraints.
-
-Output is reproducible for the same seed, structure and property traversal order,
-independently of original string, numeric and boolean values. Types and array
-structure are inspected only locally and never sent to an LLM. Generation rejects
-non-JSON values, circular references, depth beyond 100 levels (root is level 0),
-and more than 100000 values including containers. These limits apply to generation,
-not the existing key inspector.
-
-This is not certified anonymization: keys and structure remain, nulls are retained,
-and generated booleans or numbers can coincidentally match input values.
-Do not treat the output as a guarantee that a document contains no personal data.
-
-## Architecture
-
-```text
-apps/web           React + Vite; local browser UI
-apps/cli           Node.js CLI; native argument parsing
-apps/api           Fastify REST backend; independent deployment
-packages/core      Pure, platform-independent JSON analysis and seeded generation
-packages/llm       Keys-only serialization; future provider adapters
-```
-
-The web and CLI consume the same core; the REST backend is wired to that package
-for future generation endpoints. The LLM package depends only on the core's
-key-path type. No package currently sends outbound network requests.
-
-## REST backend
+## Optional REST backend
 
 ```sh
 pnpm dev:api
 curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3000/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"seed":"demo","count":2,"format":"json","fields":[{"path":["email"],"generator":"email"}]}'
 ```
 
-Set `PORT` to choose another port. The development command watches the API source.
-For a production build, run `pnpm build` followed by
-`pnpm --filter @random-api/api start`.
+Open the loopback root URL for a styled API reference. Set `PORT` for another
+port. Production start: `pnpm build`, then `pnpm --filter @random-api/api start`.
 
-The backend is an independent adapter, not a required middleman for browser or
-CLI input. Future generation endpoints will accept key paths and explicit
-generator settings, not original JSON values. Generated synthetic output may be
-returned by the backend; source analysis stays on the client. The keys-only
-catalog does not transmit inferred source types or a complete array schema.
+`POST /generate` accepts only `seed`, `count`, optional `format` (`json`/`csv`),
+and explicit `fields` (`path`/`generator`). It generates new object records; it
+does not accept an original document, inferred schema or source array lengths.
+All generators except `auto` are supported. Paths must be nonempty and must not
+duplicate or overlap. Requests allow 1–1000 records and 1–200 fields; the same
+100000-value/depth limit applies to output (root record array adds one level).
 
-Only `GET /health` exists today. The server binds to loopback, disables request
-logging, limits request bodies to 64 KiB, and uses generic error responses to
-avoid reflecting input. Authentication, rate limits, generation limits, and
-deployment configuration must be added before public hosting.
+The server binds to loopback, disables request logging, caps bodies at 64 KiB,
+limits all requests to 120 per minute per service instance, rejects unknown
+properties, untrusted hostnames and browser-origin POSTs, and returns generic
+errors with `Cache-Control: no-store`. No CORS or authentication is enabled.
+**Do not expose it publicly** without authentication and deployment protection.
+The website and desktop never send source JSON to this service.
 
-The intended desktop application is a Tauri 2 shell reusing the web interface,
-not a separate generator. Rust and desktop build tooling will be introduced when
-that application is implemented.
+## Architecture and privacy
 
-For the next feature layers, keep richer shape/type inference and field-aware
-generation local to `core`; let LLMs suggest validated generator configurations
-from key names only. Provider responses must never be executed as code.
+```text
+apps/web           React + Vite data studio and shared desktop renderer
+apps/desktop       Secure Electron shell and unsigned packaging
+apps/cli           Node.js filesystem/terminal adapter
+apps/api           Optional loopback Fastify service
+packages/core      Pure field inspection, seeded generation and export
+packages/llm       Keys-only serialization; no provider integration
+```
 
-## Privacy boundary
+Core has no networking, filesystem, UI, environment or provider dependencies.
+Local types and shapes must not be reused as LLM payloads. Future LLM requests
+may contain **key names and paths only**, not values, inferred types, lengths,
+examples or enums. `serializeKeysOnlyRequest` constructs an explicit allowlist;
+sentinel tests guard it.
 
-Original values stay on the device. Only key names and nesting paths may be
-sent to future LLM providers; not values, inferred types, examples, lengths, or
-enumerations. `serializeKeysOnlyRequest` explicitly constructs this payload and
-tests guard against source values and extra properties leaking into it.
-
-Key names are assumed to be field names. If a document uses personal data as a
-key, that key is not protected by this contract. This is not a claim of certified
-anonymization.
-
-Do not add input logging, telemetry, source snippets in parse errors, server-side
-input processing, or automatic persistence. API-key storage and provider network
-access need separate platform-specific implementation; the scaffold does not
-collect or store credentials.
+Keys are assumed to be field names. Personal data used as a key is not protected.
+Generated output preserves identifying structure; nulls remain and generated
+booleans/numbers can coincidentally match originals. This is not a guarantee of
+anonymity. No API keys, input logging, telemetry or automatic source persistence
+are implemented. Provider output must remain untrusted configuration, never code.
 
 ## Agent environment
 
-`AGENTS.md` documents the architecture, privacy rules, and validation commands.
-`.github/github-app.yml` supplies Copilot app instructions plus Setup, Web, and
-Check scripts, plus a separate REST API script. Review and accept this configuration
-in the app before it takes effect. Setup assumes Node.js and pnpm are already
-installed on the execution host; pnpm provisions the pinned runtime for scripts.
+`AGENTS.md` defines architecture, commands and privacy rules.
+`.github/github-app.yml` supplies Setup/Web/Desktop/API/Check scripts; review and accept
+that app configuration before it takes effect.
 
-GitHub Actions runs formatting/linting, strict type checking, tests, and production
-builds with the same `pnpm check` command. No `/init` command is required: the
-repository instructions and executable setup are version-controlled files.
-
-Two repository custom-agent profiles live in `.github/agents`: `developer` for
-implementation and `reviewer` for read-only review. Both follow `AGENTS.md` and
-inherit the host's selected model. The reviewer has only read/search tools;
-validation commands belong to the developer or coordinating session.
-
-Select these profiles in a host that supports repository custom agents. They do
-not start automatically or enable background orchestration. Use one session for
-tightly coupled work; split only independent tasks with non-overlapping file
-ownership, and have the coordinator integrate results and run `pnpm check`.
-An already running host may need to reload repository customizations before the
-new profiles appear.
+The `developer` and read-only `reviewer` profiles in `.github/agents` inherit the
+host's selected model. Profiles do not start agents automatically. Delegate only
+independent tasks with non-overlapping file ownership; the coordinator integrates
+results and runs `pnpm check`. Reload repository customizations if new profiles
+are not visible. GitHub Actions uses the same `pnpm check` command.

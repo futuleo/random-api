@@ -111,6 +111,7 @@ export function generateSyntheticData(
   }
   return result;
 }
+
 import {
   type FieldGenerator,
   generateFieldValue,
