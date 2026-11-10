@@ -1,17 +1,33 @@
 {
-  "name": "@random-api/cli",
-  "version": "0.0.0",
-  "private": true,
+  "name": "randomapi-studio",
+  "version": "0.1.0",
+  "description": "Local synthetic test data with rgen: scenarios, field generators and JSON, CSV, XML or JSONL exports.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/futuleo/random-api.git",
+    "directory": "apps/cli"
+  },
   "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "files": [
+    "dist/index.js",
+    "README.md"
+  ],
   "bin": {
+    "rgen": "./dist/index.js",
     "random-api": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "start": "node --experimental-strip-types src/index.ts"
+    "start": "node src/index.ts",
+    "prepack": "pnpm --filter @random-api/core build && pnpm build"
   },
-  "dependencies": {
-    "@random-api/core": "workspace:*"
+  "devDependencies": {
+    "@random-api/core": "workspace:*",
+    "esbuild": "0.28.2"
   }
 }

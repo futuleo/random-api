@@ -8,10 +8,12 @@ import {
   generateSyntheticData,
   getScenario,
   parseFieldGenerators,
+  parseLocale,
   SCENARIOS,
   serializeOutput,
   validateRecordCount,
 } from "@random-api/core";
+import manifest from "../package.json" with { type: "json" };
 
 function accent(text: string): string {
   return process.stdout.isTTY && !process.env.NO_COLOR
@@ -29,19 +31,48 @@ async function main(): Promise<void> {
         seed: { type: "string" },
         count: { type: "string", short: "n" },
         scenario: { type: "string" },
+        locale: { type: "string" },
         "list-scenarios": { type: "boolean" },
         field: { type: "string", multiple: true },
         fields: { type: "string" },
         format: { type: "string" },
         output: { type: "string", short: "o" },
         help: { type: "boolean", short: "h" },
+        version: { type: "boolean", short: "v" },
       },
-      allowPositionals: false,
+      allowPositionals: true,
     });
   } catch {
     throw new Error("Invalid arguments. Use --help for usage.");
   }
 
+  const [command, ...positionals] = options.positionals;
+  if (command !== undefined) {
+    if (command === "scenario" && positionals.length === 1) {
+      if (options.values.scenario !== undefined)
+        throw new Error("Specify a scenario only once.");
+      options.values.scenario = positionals[0];
+    } else if (positionals.length !== 0) {
+      throw new Error("Invalid command. Use --help for usage.");
+    } else if (command === "generate") {
+      options.values.generate = true;
+    } else if (command === "inspect") {
+      if (options.values.generate || options.values.scenario !== undefined)
+        throw new Error("Inspection cannot be combined with generation.");
+    } else if (command === "scenarios") {
+      options.values["list-scenarios"] = true;
+    } else if (command === "help") {
+      options.values.help = true;
+    } else if (command === "version") {
+      options.values.version = true;
+    } else {
+      throw new Error("Unknown command. Use --help for usage.");
+    }
+  }
+  if (options.values.version) {
+    process.stdout.write(`${manifest.version}\n`);
+    return;
+  }
   if (options.values.help) {
     process.stdout.write(
       [
@@ -49,7 +80,15 @@ async function main(): Promise<void> {
         "Synthetic data. Real structure. Nothing uploaded.",
         "",
         "USAGE",
-        "  random-api --input <file.json> [options]",
+        "  rgen <command> [options]",
+        "  rgen --input <file.json> [options]",
+        "",
+        "COMMANDS",
+        "  scenario <id>           Generate a built-in scenario",
+        "  scenarios               List all scenarios as JSON",
+        "  generate -i <file>       Generate from a local JSON template",
+        "  inspect -i <file>        Inspect key paths without generating",
+        "  help / version          Show usage / installed version",
         "",
         "WORKSPACE",
         "  -i, --input <file>       Source JSON; key inspection by default",
@@ -57,22 +96,24 @@ async function main(): Promise<void> {
         "  -n, --count <1-1000>     Number of objects (object templates only)",
         "      --scenario <id>      Generate a preset (10 objects by default)",
         "      --list-scenarios     List all 30 built-in scenarios as JSON",
+        "      --locale <language>  en, fi, sv, ru or es (default: en)",
         '      --seed <text>        Reproducible seed (default: "random-api")',
         "      --field <path=kind>   Repeatable; e.g. '[\"email\"]=email'",
         "      --fields <file>       JSON settings, including ranges and choices",
         "      --format <format>     json, csv, xml or jsonl (default: json)",
         "  -o, --output <file>      Write a new file; never overwrite",
         "  -h, --help               Show this guide",
+        "  -v, --version            Show the installed version",
         "",
         "GENERATORS",
         "  auto  email  name  date  uuid  string  number  boolean  enum",
         "  Use --fields for number min/max and enum values.",
         "",
         "EXAMPLE",
-        "  pnpm cli --input users.json --generate --field '[\"email\"]=email'",
-        "  pnpm cli --input users.json --generate --format csv -o synthetic.csv",
-        "  pnpm cli --scenario users --count 100 --format csv",
-        "  pnpm cli --list-scenarios",
+        "  rgen generate -i users.json --field '[\"email\"]=email'",
+        "  rgen scenario users --count 100 --locale fi --format csv",
+        "  rgen scenario products --format xml -o products.xml",
+        "  rgen scenarios --locale es",
         "",
         "PRIVACY",
         "  No network requests. Keys and structure remain; not anonymization.",
@@ -84,18 +125,21 @@ async function main(): Promise<void> {
     return;
   }
 
+  const locale = parseLocale(options.values.locale);
   if (options.values["list-scenarios"]) {
-    if (Object.keys(options.values).some((key) => key !== "list-scenarios")) {
-      throw new Error("Use --list-scenarios on its own.");
+    if (
+      Object.keys(options.values).some(
+        (key) => key !== "list-scenarios" && key !== "locale",
+      )
+    ) {
+      throw new Error("Scenario listing accepts only --locale.");
     }
     process.stdout.write(
       `${JSON.stringify(
-        SCENARIOS.map(({ id, name, category, description }) => ({
-          id,
-          name,
-          category,
-          description,
-        })),
+        SCENARIOS.map(({ id }) => {
+          const { name, category, description } = getScenario(id, locale);
+          return { id, name, category, description };
+        }),
         null,
         2,
       )}\n`,
@@ -110,7 +154,7 @@ async function main(): Promise<void> {
   }
   const scenario =
     typeof options.values.scenario === "string"
-      ? getScenario(options.values.scenario)
+      ? getScenario(options.values.scenario, locale)
       : undefined;
   const generating = options.values.generate === true || scenario !== undefined;
   if (typeof options.values.input !== "string" && !scenario) {
@@ -118,12 +162,12 @@ async function main(): Promise<void> {
   }
   if (
     !generating &&
-    ["seed", "field", "fields", "format", "count"].some(
+    ["seed", "field", "fields", "format", "count", "locale"].some(
       (key) => options.values[key] !== undefined,
     )
   ) {
     throw new Error(
-      "--seed, --field, --fields, --format and --count require --generate or --scenario.",
+      "--seed, --field, --fields, --format, --count and --locale require generation.",
     );
   }
   let count: number | undefined = scenario ? 10 : undefined;
@@ -201,6 +245,7 @@ async function main(): Promise<void> {
 
   const generationOptions = {
     fields,
+    locale,
     seed:
       typeof options.values.seed === "string"
         ? options.values.seed

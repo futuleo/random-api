@@ -44,3 +44,11 @@ export const NAME_WORDS: Record<
     last: ["García", "López", "Martínez", "Navarro", "Sánchez", "Ruiz"],
   },
 };
+
+export const TEXT_PREFIX: Record<Locale, string> = {
+  en: "synthetic",
+  fi: "testiteksti",
+  sv: "testtext",
+  ru: "тестовый_текст",
+  es: "texto_de_prueba",
+};

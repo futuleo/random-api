@@ -78,7 +78,7 @@ export function generateSyntheticData(
     }
     if (value === null) return null;
     if (typeof value === "string") {
-      return `synthetic_${Math.floor(random() * 4294967296).toString(36)}`;
+      return generateFieldValue({ generator: "string" }, random, locale);
     }
     if (typeof value === "boolean") return random() >= 0.5;
     if (typeof value === "number" && Number.isFinite(value)) {

@@ -75,6 +75,36 @@ describe("CLI", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("--generate");
     expect(result.stdout).toContain("--seed");
+    expect(result.stdout).toContain("rgen <command>");
+    expect(run("--version").stdout.trim()).toBe("0.1.0");
+    expect(run("version").stdout).toBe(run("--version").stdout);
+    expect(run("help").stdout).toBe(run("--help").stdout);
+  });
+  it("supports standalone commands and all five explicit locales", () => {
+    expect(run("inspect", "-i", input).stdout).toBe(run("-i", input).stdout);
+    expect(run("generate", "-i", input).stdout).toBe(
+      run("-i", input, "--generate").stdout,
+    );
+    for (const locale of ["en", "fi", "sv", "ru", "es"]) {
+      const list = run("scenarios", "--locale", locale);
+      expect(list.status).toBe(0);
+      expect(JSON.parse(list.stdout)).toHaveLength(30);
+      const generated = run(
+        "scenario",
+        "products",
+        "--locale",
+        locale,
+        "-n",
+        "3",
+      );
+      expect(generated.status).toBe(0);
+      expect(JSON.parse(generated.stdout)).toHaveLength(3);
+      expect(generated.stdout).toBe(
+        run("--scenario", "products", "--locale", locale, "-n", "3").stdout,
+      );
+    }
+    const russian = JSON.parse(run("scenarios", "--locale", "ru").stdout);
+    expect(russian[0].name).toBe("Пользователи");
   });
 
   it("lists all 30 scenarios without reading an input file", () => {
@@ -220,6 +250,15 @@ describe("CLI", () => {
       ["--scenario", "SENTINEL_UNKNOWN"],
       ["--scenario", "users", "--input", input],
       ["--list-scenarios", "--count", "5"],
+      ["scenario", "SENTINEL_COMMAND"],
+      ["scenario", "users", "--scenario", "products"],
+      ["inspect", "-i", input, "--generate"],
+      ["--input", input, "--locale", "fi"],
+      ["--scenario", "users", "--locale", "SENTINEL_LANGUAGE"],
+      ["scenarios", "--output", join(directory, "SENTINEL_OUTPUT")],
+      ["SENTINEL_COMMAND"],
+      ["scenario"],
+      ["generate", "SENTINEL_EXTRA", "-i", input],
       [],
     ]) {
       const result = run(...args);

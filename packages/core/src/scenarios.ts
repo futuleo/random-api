@@ -5,7 +5,9 @@ import {
   parseFieldGenerators,
 } from "./fields.js";
 import type { JsonValue } from "./generate.js";
+import { type Locale, parseLocale } from "./locale.js";
 import { generateRecords } from "./records.js";
+import { SCENARIO_TEXT, scenarioWord } from "./scenario-locales.js";
 
 export interface Scenario {
   readonly id: string;
@@ -546,8 +548,35 @@ export const SCENARIOS: readonly Scenario[] = [
   ),
 ];
 
-export function getScenario(id: string): Scenario {
+export function getScenario(id: string, locale: Locale = "en"): Scenario {
+  const language = parseLocale(locale);
   const found = SCENARIOS.find((item) => item.id === id);
   if (!found) throw new TypeError("Unknown scenario ID.");
-  return found;
+  if (language === "en") return found;
+  const text = SCENARIO_TEXT[language][id];
+  if (!text) throw new TypeError("Incomplete scenario dictionary.");
+  const fields = found.fields.map(
+    (field): FieldGenerator => ({
+      ...field,
+      ...(field.generator === "enum"
+        ? { values: field.values.map((value) => scenarioWord(value, language)) }
+        : {}),
+    }),
+  );
+  const records = generateRecords({
+    seed: `fixture-${id}`,
+    count: 1,
+    locale: language,
+    fields,
+  });
+  if (!Array.isArray(records) || records[0] === undefined)
+    throw new Error("Could not construct the localized scenario template.");
+  return {
+    ...found,
+    name: text[0],
+    description: text[1],
+    category: scenarioWord(found.category, language),
+    fields,
+    template: records[0],
+  };
 }

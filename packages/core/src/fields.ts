@@ -1,5 +1,5 @@
 import type { KeyPath } from "./index.js";
-import { type Locale, NAME_WORDS } from "./locale.js";
+import { type Locale, NAME_WORDS, TEXT_PREFIX } from "./locale.js";
 
 export const GENERATOR_KINDS = [
   "auto",
@@ -220,7 +220,7 @@ export function generateFieldValue(
       return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
     }
     case "string":
-      return `synthetic_${token()}`;
+      return `${TEXT_PREFIX[locale]}_${token()}`;
     case "number":
       return (
         (setting.min ?? 0) +
