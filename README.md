@@ -237,8 +237,15 @@ are implemented. Provider output must remain untrusted configuration, never code
 `.github/github-app.yml` supplies Setup/Web/Desktop/API/Check scripts; review and accept
 that app configuration before it takes effect.
 
-The `developer` and read-only `reviewer` profiles in `.github/agents` inherit the
-host's selected model. Profiles do not start agents automatically. Delegate only
+The `developer`, read-only `reviewer` and `commit-reviewer` profiles in
+`.github/agents` inherit the host's selected model. Before every agent-created
+commit, an independent reviewer checks the exact staged changes for correctness,
+unnecessary complexity, regressions, privacy leaks and security flaws. Changed
+staged content requires a new review; confirmed high-impact defects block the
+commit. Commit verified work in small, coherent slices.
+
+These are agent workflow instructions, not a Git hook: profiles do not start
+agents automatically or intercept manual commits. Delegate only
 independent tasks with non-overlapping file ownership; the coordinator integrates
 results and runs `pnpm check`. Reload repository customizations if new profiles
 are not visible. GitHub Actions uses the same `pnpm check` command.

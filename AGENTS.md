@@ -61,6 +61,19 @@
 - `.github/agents/developer.agent.md` implements scoped features and their tests.
 - `.github/agents/reviewer.agent.md` provides read-only correctness and privacy
   review; it cannot edit files or execute commands.
+- `.github/agents/commit-reviewer.agent.md` critically reviews each proposed
+  agent-created commit for correctness, complexity, regressions and security.
+- Make small, coherent commits as verified slices become ready, when the user
+  has authorized commits. Do not accumulate unrelated features into one commit.
+- Before each agent-created commit, stage only its intended files and obtain an
+  independent review of that exact staged diff using the commit-reviewer
+  instructions. Supply the diff and relevant context to a read-only reviewer.
+  Do not substitute self-review for this check.
+- Fix confirmed high-impact findings, run the relevant checks and obtain a new
+  review if staged content changes. Do not commit known exploitable flaws or
+  broken behavior. Report unresolved uncertainty rather than claiming success.
+- A review covers only the reviewed snapshot. After committing, verify the
+  committed paths and working-tree state; keep unrelated work unstaged.
 - Profiles inherit the selected model; no provider credentials are required by
   these files. Model and tool availability still depend on the execution host.
 - Keep small or tightly coupled work in one session. Delegate only concrete,
@@ -69,3 +82,5 @@
   owns integration, resolution of conflicting changes and the final pnpm check.
 - Do not create branches, commits, pushes or pull requests without user
   authorization. Profiles do not start agents or scheduled work automatically.
+- This is an agent workflow requirement, not a Git hook: it does not intercept
+  commits made manually or by tools that do not follow these instructions.

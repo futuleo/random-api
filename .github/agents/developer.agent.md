@@ -18,5 +18,7 @@ sentinel regression tests for any payload changes. Never log source content or
 secrets. Treat provider output as untrusted configuration, never executable code.
 
 Preserve unrelated working-tree changes. Run pnpm format and pnpm check before
-handoff. Report the meaningful change and any blockers. Do not commit, push,
+handoff. When commits are authorized, follow the independent per-commit review
+workflow in AGENTS.md and commit small verified slices. Report the meaningful
+change and any blockers. Do not commit, push,
 create a pull request or delegate further unless explicitly requested.
