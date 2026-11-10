@@ -1,4 +1,5 @@
 import type { KeyPath } from "./index.js";
+import { type Locale, NAME_WORDS } from "./locale.js";
 
 export const GENERATOR_KINDS = [
   "auto",
@@ -9,14 +10,25 @@ export const GENERATOR_KINDS = [
   "string",
   "number",
   "boolean",
+  "enum",
 ] as const;
 
 export type GeneratorKind = (typeof GENERATOR_KINDS)[number];
 
-export interface FieldGenerator {
-  readonly path: KeyPath;
-  readonly generator: GeneratorKind;
-}
+export type GeneratorSettings =
+  | { readonly generator: Exclude<GeneratorKind, "number" | "enum"> }
+  | {
+      readonly generator: "number";
+      readonly min?: number;
+      readonly max?: number;
+    }
+  | { readonly generator: "enum"; readonly values: readonly string[] };
+
+export type FieldGenerator = GeneratorSettings & { readonly path: KeyPath };
+
+export const NUMERIC_LIMIT = 1_000_000_000;
+export const MAX_ENUM_VALUES = 50;
+export const MAX_ENUM_VALUE_LENGTH = 256;
 
 export interface LocalField {
   readonly path: KeyPath;
@@ -38,7 +50,6 @@ export function parseFieldGenerators(input: unknown): FieldGenerator[] {
       typeof item !== "object" ||
       !("path" in item) ||
       !("generator" in item) ||
-      Object.keys(item).some((key) => key !== "path" && key !== "generator") ||
       !Array.isArray(item.path) ||
       item.path.length > 100 ||
       !item.path.every(
@@ -51,17 +62,73 @@ export function parseFieldGenerators(input: unknown): FieldGenerator[] {
         "Each field setting must contain only a string-segment path and a supported generator.",
       );
     }
+    const allowed = [
+      "path",
+      "generator",
+      ...(item.generator === "number"
+        ? ["min", "max"]
+        : item.generator === "enum"
+          ? ["values"]
+          : []),
+    ];
+    if (Object.keys(item).some((key) => !allowed.includes(key))) {
+      throw new TypeError("Field settings contain unsupported properties.");
+    }
     const path: string[] = item.path.map((segment: string) => segment);
     const id = JSON.stringify(path);
     if (seen.has(id)) {
       throw new TypeError("Field generator paths must be unique.");
     }
     seen.add(id);
+    if (item.generator === "number") {
+      const min = "min" in item ? item.min : 0;
+      const max = "max" in item ? item.max : 999_999;
+      if (
+        typeof min !== "number" ||
+        typeof max !== "number" ||
+        !Number.isInteger(min) ||
+        !Number.isInteger(max) ||
+        min < -NUMERIC_LIMIT ||
+        max > NUMERIC_LIMIT ||
+        min > max
+      ) {
+        throw new RangeError(
+          "Number settings require ordered integer bounds between -1000000000 and 1000000000.",
+        );
+      }
+      return { path, generator: "number", min, max };
+    }
+    if (item.generator === "enum") {
+      const values = "values" in item ? item.values : undefined;
+      if (
+        !Array.isArray(values) ||
+        values.length < 1 ||
+        values.length > MAX_ENUM_VALUES ||
+        !values.every(
+          (value: unknown) =>
+            typeof value === "string" &&
+            value.trim().length > 0 &&
+            value.length <= MAX_ENUM_VALUE_LENGTH,
+        ) ||
+        new Set(values).size !== values.length
+      ) {
+        throw new TypeError(
+          "Enum settings require 1–50 unique, nonempty strings of at most 256 characters.",
+        );
+      }
+      return {
+        path,
+        generator: "enum",
+        values: values.map((value: string) => value),
+      };
+    }
     return { path, generator: item.generator };
   });
 }
 
-export function suggestGenerator(path: KeyPath): GeneratorKind {
+export function suggestGenerator(
+  path: KeyPath,
+): Exclude<GeneratorKind, "enum"> {
   const key = (path.at(-1) ?? "").toLowerCase().replace(/[-_\s]/g, "");
   if (key.includes("email")) return "email";
   if (["name", "fullname", "firstname", "lastname"].includes(key))
@@ -120,19 +187,23 @@ export function inspectLocalFields(input: unknown): LocalField[] {
   }));
 }
 
-const FIRST_NAMES = ["Alex", "Jordan", "Taylor", "Casey", "Morgan", "Robin"];
-const LAST_NAMES = ["Reed", "Parker", "Brooks", "Hayes", "Lane", "Wells"];
-
 export function generateFieldValue(
-  kind: Exclude<GeneratorKind, "auto">,
+  setting: GeneratorSettings,
   random: () => number,
+  locale: Locale = "en",
 ): string | number | boolean {
   const token = () => Math.floor(random() * 4294967296).toString(36);
-  switch (kind) {
+  switch (setting.generator) {
     case "email":
       return `user.${token()}@example.test`;
-    case "name":
-      return `${FIRST_NAMES[Math.floor(random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(random() * LAST_NAMES.length)]}`;
+    case "name": {
+      const words = NAME_WORDS[locale];
+      const firstIndex = Math.floor(random() * words.first.length);
+      const last = words.last[Math.floor(random() * words.last.length)];
+      const family =
+        locale === "ru" && [1, 2, 5].includes(firstIndex) ? `${last}а` : last;
+      return `${words.first[firstIndex]} ${family}`;
+    }
     case "date":
       return new Date(
         Date.UTC(2020, 0, 1) + Math.floor(random() * 315619200000),
@@ -151,8 +222,22 @@ export function generateFieldValue(
     case "string":
       return `synthetic_${token()}`;
     case "number":
-      return Math.floor(random() * 1_000_000);
+      return (
+        (setting.min ?? 0) +
+        Math.floor(
+          random() * ((setting.max ?? 999_999) - (setting.min ?? 0) + 1),
+        )
+      );
     case "boolean":
       return random() >= 0.5;
+    case "enum": {
+      const value =
+        setting.values[Math.floor(random() * setting.values.length)];
+      if (value === undefined)
+        throw new TypeError("Enum settings require at least one value.");
+      return value;
+    }
+    case "auto":
+      throw new TypeError("Automatic generation requires a source value.");
   }
 }

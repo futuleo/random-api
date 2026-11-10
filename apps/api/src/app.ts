@@ -1,7 +1,16 @@
 import {
+  EXPORT_FORMATS,
+  EXPORT_MEDIA_TYPES,
+  type ExportFormat,
   type FieldGenerator,
   GENERATOR_KINDS,
   generateRecords,
+  LOCALES,
+  type Locale,
+  MAX_ENUM_VALUE_LENGTH,
+  MAX_ENUM_VALUES,
+  NUMERIC_LIMIT,
+  parseFieldGenerators,
   serializeOutput,
 } from "@random-api/core";
 import Fastify from "fastify";
@@ -65,8 +74,9 @@ export function buildApp() {
   app.post<{
     Body: {
       seed: string;
+      locale: Locale;
       count: number;
-      format: "json" | "csv";
+      format: ExportFormat;
       fields: FieldGenerator[];
     };
   }>("/generate", {
@@ -77,8 +87,9 @@ export function buildApp() {
         required: ["seed", "count", "fields"],
         properties: {
           seed: { type: "string", minLength: 1, maxLength: 256 },
+          locale: { type: "string", enum: LOCALES, default: "en" },
           count: { type: "integer", minimum: 1, maximum: 1000 },
-          format: { type: "string", enum: ["json", "csv"], default: "json" },
+          format: { type: "string", enum: EXPORT_FORMATS, default: "json" },
           fields: {
             type: "array",
             minItems: 1,
@@ -98,6 +109,27 @@ export function buildApp() {
                   type: "string",
                   enum: GENERATOR_KINDS.filter((kind) => kind !== "auto"),
                 },
+                min: {
+                  type: "integer",
+                  minimum: -NUMERIC_LIMIT,
+                  maximum: NUMERIC_LIMIT,
+                },
+                max: {
+                  type: "integer",
+                  minimum: -NUMERIC_LIMIT,
+                  maximum: NUMERIC_LIMIT,
+                },
+                values: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: MAX_ENUM_VALUES,
+                  uniqueItems: true,
+                  items: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: MAX_ENUM_VALUE_LENGTH,
+                  },
+                },
               },
             },
           },
@@ -109,11 +141,9 @@ export function buildApp() {
       try {
         const result = generateRecords({
           seed: request.body.seed,
+          locale: request.body.locale,
           count: request.body.count,
-          fields: request.body.fields.map(({ path, generator }) => ({
-            path: path.map((segment) => segment),
-            generator,
-          })),
+          fields: parseFieldGenerators(request.body.fields),
         });
         output = serializeOutput(result, request.body.format);
       } catch (error) {
@@ -124,13 +154,7 @@ export function buildApp() {
         }
         throw error;
       }
-      return reply
-        .type(
-          request.body.format === "csv"
-            ? "text/csv; charset=utf-8"
-            : "application/json; charset=utf-8",
-        )
-        .send(output);
+      return reply.type(EXPORT_MEDIA_TYPES[request.body.format]).send(output);
     },
   });
 

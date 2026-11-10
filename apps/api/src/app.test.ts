@@ -151,6 +151,72 @@ describe("API scaffold", () => {
       expect(response.body).not.toContain("SENTINEL");
     }
   });
+  it("accepts only explicit bounded fixture choices and localized names", async () => {
+    const app = createApp();
+    const payload = {
+      seed: "constraints",
+      locale: "fi",
+      count: 20,
+      fields: [
+        { path: ["name"], generator: "name" },
+        { path: ["quantity"], generator: "number", min: 2, max: 4 },
+        { path: ["state"], generator: "enum", values: ["pending", "done"] },
+      ],
+    };
+    const response = await app.inject({
+      method: "POST",
+      url: "/generate",
+      payload,
+    });
+    expect(response.statusCode).toBe(200);
+    const rows: { name: string; quantity: number; state: string }[] =
+      response.json();
+    expect(rows).toHaveLength(20);
+    for (const row of rows) {
+      expect(row.name).toMatch(/^(Aino|Eero|Emilia|Onni|Sofia|Väinö) /);
+      expect(row.quantity).toBeGreaterThanOrEqual(2);
+      expect(row.quantity).toBeLessThanOrEqual(4);
+      expect(["pending", "done"]).toContain(row.state);
+    }
+    for (const fields of [
+      [{ path: ["state"], generator: "enum", values: ["same", "same"] }],
+      [{ path: ["quantity"], generator: "number", min: 10, max: 0 }],
+      [{ path: ["name"], generator: "name", values: ["SENTINEL_SOURCE"] }],
+      [
+        {
+          path: ["state"],
+          generator: "enum",
+          values: ["ok"],
+          original: "SENTINEL_SOURCE",
+        },
+      ],
+    ]) {
+      const invalid = await app.inject({
+        method: "POST",
+        url: "/generate",
+        payload: { ...payload, fields },
+      });
+      expect(invalid.statusCode).toBe(400);
+      expect(invalid.body).not.toContain("SENTINEL");
+    }
+    for (const format of ["xml", "jsonl"]) {
+      const result = await app.inject({
+        method: "POST",
+        url: "/generate",
+        payload: { ...payload, format },
+      });
+      expect(result.statusCode).toBe(200);
+      if (format === "xml") {
+        expect(result.headers["content-type"]).toContain("application/xml");
+        expect(result.body).toContain('<field name="state" type="string">');
+      } else {
+        expect(result.headers["content-type"]).toContain(
+          "application/x-ndjson",
+        );
+        expect(result.body.trim().split("\n")).toHaveLength(20);
+      }
+    }
+  });
   it("enforces request-body and local rate limits", async () => {
     const app = createApp();
     const large = await app.inject({

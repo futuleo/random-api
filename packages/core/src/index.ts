@@ -1,11 +1,20 @@
-export { type ExportFormat, serializeOutput } from "./export.js";
+export {
+  EXPORT_FORMATS,
+  EXPORT_MEDIA_TYPES,
+  type ExportFormat,
+  serializeOutput,
+} from "./export.js";
 export {
   type FieldGenerator,
   GENERATOR_KINDS,
   type GeneratorKind,
+  type GeneratorSettings,
   inspectLocalFields,
   isGeneratorKind,
   type LocalField,
+  MAX_ENUM_VALUE_LENGTH,
+  MAX_ENUM_VALUES,
+  NUMERIC_LIMIT,
   parseFieldGenerators,
   suggestGenerator,
 } from "./fields.js";
@@ -14,6 +23,13 @@ export {
   generateSyntheticData,
   type JsonValue,
 } from "./generate.js";
+export {
+  isLocale,
+  LOCALE_NAMES,
+  LOCALES,
+  type Locale,
+  parseLocale,
+} from "./locale.js";
 export {
   generateSimilarObjects,
   isObjectTemplate,

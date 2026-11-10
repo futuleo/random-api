@@ -56,9 +56,11 @@ array of objects, samples cycle in their original order; nested arrays retain
 their shapes. Non-object roots, empty arrays and mixed arrays still support
 shape-preserving generation, but the object-count control is disabled.
 
-Presets are structural fixtures for common screens and workflows, not full
-business simulations. They do not enforce enum values, realistic quantity
-ranges, chronological ordering or relationships between records.
+Presets include explicit status/category choices and bounded quantities, prices,
+ratings and durations. Number fields have editable inclusive integer bounds;
+choice fields have an editable list (one nonempty value per line). These settings
+are never inferred from original values. Fields remain independent: presets do
+not guarantee chronological ordering, coherent totals or relationships.
 
 Large previews show only the first 20000 characters to keep the interface
 responsive; copy and downloads still contain the full generated output.
@@ -76,8 +78,9 @@ be replaced by scalar generators. Empty containers remain empty.
 | `date`    | UTC ISO timestamp from 2020 through 2029                  |
 | `uuid`    | Seeded UUID in v4 format                                  |
 | `string`  | `synthetic_` token                                        |
-| `number`  | Integer from 0 to 999999                                  |
+| `number`  | Inclusive integer range; defaults to 0 through 999999     |
 | `boolean` | Seeded true/false                                         |
+| `enum`    | One of 1–50 explicitly configured unique text values      |
 
 These are test fixtures: names are not exhaustive, fields are generated
 independently, and uniqueness/foreign-key relationships are not guaranteed.
@@ -86,6 +89,8 @@ Seeded UUIDs and the PRNG must not be used for secrets or security identifiers.
 Generation accepts at most 100 levels (root is level 0) and 100000 values,
 including containers. Seeds contain 1–256 characters. Custom settings are limited
 to 200 unique paths, each with at most 100 segments of up to 256 characters.
+Number bounds must be integers within -1000000000 through 1000000000. Enum
+choices must be nonempty strings of at most 256 characters.
 Local field inspection is also bounded; key inspection alone is not a full schema.
 
 ## CLI
@@ -148,6 +153,20 @@ cells. An empty root array produces an empty CSV. Cells use double-quote escapin
 and CRLF row endings. Formula-like cells (`=`, `+`, `-`, `@`, leading tab/CR,
 including whitespace-prefixed formulas) receive a leading apostrophe for
 spreadsheet safety; this intentionally changes those CSV cell values.
+Numeric values, including negative numbers, remain numeric CSV text.
+
+### XML and JSON Lines
+
+`--format xml` preserves JSON types and arbitrary keys using typed elements:
+`<data type="array"><item type="object"><field name="id" type="string">...</field></item></data>`.
+Null is `type="null"`; empty objects and arrays keep their distinct types. Content
+and attribute values are escaped, including whitespace in keys. XML 1.0-invalid
+characters cause an explicit error. No DTD or external entities are generated.
+
+`--format jsonl` emits one compact JSON value per root-array element, terminated
+by a newline. A non-array root produces one line; an empty array produces an
+empty file. Line breaks inside strings are escaped. All four formats are also
+available in the web/Electron preview, exports and REST responses.
 
 ## Electron desktop
 

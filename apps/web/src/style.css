@@ -761,6 +761,16 @@ textarea:focus-visible {
   background: #121216;
   white-space: pre;
 }
+.preview-error {
+  min-height: 220px;
+  padding: 28px 22px;
+  color: #d3b879;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.preview-error p {
+  color: #b6a8c6;
+}
 .syntax-key {
   color: #bda7df;
 }
@@ -850,6 +860,55 @@ select {
   min-height: 36px;
   font-size: 12px;
 }
+.field-options {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 8px 0 5px;
+}
+.number-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+.field-options :where(label) > span,
+.enum-options > span {
+  display: block;
+  font-size: 8px;
+  color: #a397b5;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.field-options :where(input, textarea) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #3c3747;
+  border-radius: 5px;
+  color: #dfd6ed;
+  background: #111116;
+  padding: 8px 10px;
+  font:
+    11px / 1.6 "SFMono-Regular",
+    Consolas,
+    monospace;
+}
+.field-options textarea {
+  resize: vertical;
+}
+.range-separator {
+  font-size: 10px;
+  color: #8e819d;
+  padding-bottom: 10px;
+}
+.field-options .option-hint {
+  grid-column: 1 / -1;
+  font-size: 9px;
+  line-height: 1.7;
+  color: #9c8ead;
+  margin: 4px 0 0;
+  letter-spacing: 0;
+}
 .field-empty {
   color: #a09aa9;
   padding: 0 20px 20px;
@@ -903,9 +962,19 @@ select {
 }
 .output-column .export-actions {
   margin-left: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
 }
 .output-column .export-actions > button {
   flex: 1;
+}
+.output-panel .panel-heading {
+  height: auto;
+  min-height: 56px;
+  flex-wrap: wrap;
+  row-gap: 10px;
+  padding-block: 12px;
 }
 .secondary-button {
   background: #23232c;

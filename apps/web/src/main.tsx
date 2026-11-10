@@ -1,4 +1,6 @@
 import {
+  EXPORT_FORMATS,
+  EXPORT_MEDIA_TYPES,
   type ExportFormat,
   type FieldGenerator,
   GENERATOR_KINDS,
@@ -17,6 +19,7 @@ import {
 } from "@random-api/core";
 import { StrictMode, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { createOutputPreview } from "./preview.js";
 import "./style.css";
 
 const DEFAULT_SCENARIO = getScenario("users");
@@ -32,8 +35,17 @@ const LABELS: Record<GeneratorKind, string> = {
   string: "Text token",
   number: "Number",
   boolean: "Boolean",
+  enum: "Choice from a list",
 };
 const PREVIEW_LIMIT = 20_000;
+
+function numberDraft(value: string | undefined, fallback: number): number {
+  return value === undefined
+    ? fallback
+    : /^-?\d+$/.test(value)
+      ? Number(value)
+      : Number.NaN;
+}
 
 function Icon({
   name,
@@ -115,6 +127,9 @@ function App() {
   const [settings, setSettings] = useState<readonly FieldGenerator[]>(
     DEFAULT_SCENARIO.fields,
   );
+  const [fieldDrafts, setFieldDrafts] = useState<
+    Record<string, { min?: string; max?: string; values?: string }>
+  >({});
   const [selectedScenario, setSelectedScenario] = useState<string | null>(
     DEFAULT_SCENARIO.id,
   );
@@ -174,12 +189,14 @@ function App() {
   function updateSource(text: string) {
     setInput(text);
     setSettings([]);
+    setFieldDrafts({});
     setSelectedScenario(null);
     invalidate();
   }
   function loadScenario(scenario: Scenario) {
     setInput(JSON.stringify(scenario.template, null, 2));
     setSettings(scenario.fields);
+    setFieldDrafts({});
     setSelectedScenario(scenario.id);
     setShowScenarios(false);
     invalidate();
@@ -189,8 +206,31 @@ function App() {
       ...current.filter(
         (field) => JSON.stringify(field.path) !== JSON.stringify(path),
       ),
-      ...(generator === "auto" ? [] : [{ path, generator }]),
+      ...(generator === "auto"
+        ? []
+        : [
+            generator === "enum"
+              ? { path, generator, values: ["pending", "active", "disabled"] }
+              : { path, generator },
+          ]),
     ]);
+    setFieldDrafts((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([id]) => id !== JSON.stringify(path)),
+      ),
+    );
+    invalidate();
+  }
+  function updateFieldDraft(
+    path: readonly string[],
+    key: "min" | "max" | "values",
+    value: string,
+  ) {
+    const id = JSON.stringify(path);
+    setFieldDrafts((current) => ({
+      ...current,
+      [id]: { ...current[id], [key]: value },
+    }));
     invalidate();
   }
   function generate() {
@@ -202,7 +242,26 @@ function App() {
     try {
       const options = {
         seed: crypto.randomUUID(),
-        fields: settings,
+        fields: settings.map((setting): FieldGenerator => {
+          const draft = fieldDrafts[JSON.stringify(setting.path)];
+          if (setting.generator === "number")
+            return {
+              path: setting.path,
+              generator: "number",
+              min: numberDraft(draft?.min, setting.min ?? 0),
+              max: numberDraft(draft?.max, setting.max ?? 999_999),
+            };
+          if (setting.generator === "enum")
+            return {
+              path: setting.path,
+              generator: "enum",
+              values:
+                draft?.values === undefined
+                  ? setting.values
+                  : draft.values.split("\n"),
+            };
+          return setting;
+        }),
       };
       const value = objectTemplate
         ? generateSimilarObjects(analysis.document, {
@@ -221,9 +280,14 @@ function App() {
       );
     }
   }
-  const output = result === null ? "" : serializeOutput(result.value, format);
+  const preview = useMemo(
+    () => (result === null ? null : createOutputPreview(result.value, format)),
+    [result, format],
+  );
+  const output = preview?.ok ? preview.text : "";
+  const previewError = preview !== null && !preview.ok ? preview.error : null;
   async function copy() {
-    if (!result) return;
+    if (!preview?.ok) return;
     try {
       await navigator.clipboard.writeText(output);
       setNotice("Generated output copied to clipboard.");
@@ -239,10 +303,7 @@ function App() {
       const content = serializeOutput(result.value, exportFormat);
       const url = URL.createObjectURL(
         new Blob([content], {
-          type:
-            exportFormat === "json"
-              ? "application/json"
-              : "text/csv;charset=utf-8",
+          type: EXPORT_MEDIA_TYPES[exportFormat],
         }),
       );
       const link = document.createElement("a");
@@ -643,6 +704,7 @@ function App() {
                                 : [{ path, generator }];
                             }),
                           );
+                          setFieldDrafts({});
                           invalidate();
                         }}
                       >
@@ -671,43 +733,126 @@ function App() {
                           <span>LOCAL TYPE</span>
                           <span>GENERATOR</span>
                         </div>
-                        {analysis.fields.map(({ path, types }) => (
-                          <div className="field-row" key={JSON.stringify(path)}>
-                            <code title={JSON.stringify(path)}>
-                              <span className="field-symbol">#</span>
-                              {path.length === 0
-                                ? "(root value)"
-                                : JSON.stringify(path)}
-                            </code>
-                            <span className="type-badge">
-                              {types.join(" / ")}
-                            </span>
-                            <label className="generator-select">
-                              <span className="visually-hidden">
-                                Generator for {JSON.stringify(path)}
+                        {analysis.fields.map(({ path, types }) => {
+                          const setting = settings.find(
+                            (item) =>
+                              JSON.stringify(item.path) ===
+                              JSON.stringify(path),
+                          );
+                          const draft = fieldDrafts[JSON.stringify(path)];
+                          return (
+                            <div
+                              className="field-row"
+                              key={JSON.stringify(path)}
+                            >
+                              <code title={JSON.stringify(path)}>
+                                <span className="field-symbol">#</span>
+                                {path.length === 0
+                                  ? "(root value)"
+                                  : JSON.stringify(path)}
+                              </code>
+                              <span className="type-badge">
+                                {types.join(" / ")}
                               </span>
-                              <select
-                                value={
-                                  settings.find(
-                                    (setting) =>
-                                      JSON.stringify(setting.path) ===
-                                      JSON.stringify(path),
-                                  )?.generator ?? "auto"
-                                }
-                                onChange={(event) => {
-                                  if (isGeneratorKind(event.target.value))
-                                    choose(path, event.target.value);
-                                }}
-                              >
-                                {GENERATOR_KINDS.map((kind) => (
-                                  <option key={kind} value={kind}>
-                                    {LABELS[kind]}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                          </div>
-                        ))}
+                              <label className="generator-select">
+                                <span className="visually-hidden">
+                                  Generator for {JSON.stringify(path)}
+                                </span>
+                                <select
+                                  value={
+                                    settings.find(
+                                      (setting) =>
+                                        JSON.stringify(setting.path) ===
+                                        JSON.stringify(path),
+                                    )?.generator ?? "auto"
+                                  }
+                                  onChange={(event) => {
+                                    if (isGeneratorKind(event.target.value))
+                                      choose(path, event.target.value);
+                                  }}
+                                >
+                                  {GENERATOR_KINDS.map((kind) => (
+                                    <option key={kind} value={kind}>
+                                      {LABELS[kind]}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              {setting?.generator === "number" && (
+                                <div className="field-options number-options">
+                                  <label>
+                                    <span>MINIMUM</span>
+                                    <input
+                                      inputMode="numeric"
+                                      aria-label={`Minimum for ${JSON.stringify(path)}`}
+                                      value={
+                                        draft?.min ?? String(setting.min ?? 0)
+                                      }
+                                      onChange={(event) =>
+                                        updateFieldDraft(
+                                          path,
+                                          "min",
+                                          event.target.value,
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                  <span
+                                    className="range-separator"
+                                    aria-hidden="true"
+                                  >
+                                    to
+                                  </span>
+                                  <label>
+                                    <span>MAXIMUM</span>
+                                    <input
+                                      inputMode="numeric"
+                                      aria-label={`Maximum for ${JSON.stringify(path)}`}
+                                      value={
+                                        draft?.max ??
+                                        String(setting.max ?? 999_999)
+                                      }
+                                      onChange={(event) =>
+                                        updateFieldDraft(
+                                          path,
+                                          "max",
+                                          event.target.value,
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                  <span className="option-hint">
+                                    Inclusive integer range
+                                  </span>
+                                </div>
+                              )}
+                              {setting?.generator === "enum" && (
+                                <label className="field-options enum-options">
+                                  <span>ALLOWED VALUES</span>
+                                  <textarea
+                                    aria-label={`Allowed values for ${JSON.stringify(path)}`}
+                                    value={
+                                      draft?.values ?? setting.values.join("\n")
+                                    }
+                                    rows={3}
+                                    onChange={(event) =>
+                                      updateFieldDraft(
+                                        path,
+                                        "values",
+                                        event.target.value,
+                                      )
+                                    }
+                                    spellCheck={false}
+                                  />
+                                  <span className="option-hint">
+                                    One value per line · 1–50 unique choices ·
+                                    never inferred from your source
+                                  </span>
+                                </label>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </section>
@@ -762,7 +907,7 @@ function App() {
                         className="segmented"
                         aria-label="Preview format"
                       >
-                        {(["json", "csv"] as const).map((value) => (
+                        {EXPORT_FORMATS.map((value) => (
                           <button
                             key={value}
                             type="button"
@@ -774,7 +919,18 @@ function App() {
                         ))}
                       </fieldset>
                     </div>
-                    {result ? (
+                    {previewError ? (
+                      <div className="preview-error" role="alert">
+                        <strong>
+                          This format cannot represent the generated data.
+                        </strong>
+                        <p>{previewError}</p>
+                        <p>
+                          Your source and result are preserved. Choose another
+                          format or export JSON.
+                        </p>
+                      </div>
+                    ) : result ? (
                       <pre className="output-code">
                         {output.length > PREVIEW_LIMIT && (
                           <span className="preview-note">
@@ -807,15 +963,17 @@ function App() {
                     )}
                     <div className="panel-footer">
                       <span>
-                        {result
-                          ? `${Array.isArray(result.value) ? `${result.value.length} ${objectTemplate ? "objects" : "items"} · ` : ""}${new TextEncoder().encode(output).length.toLocaleString()} bytes · ready to export`
-                          : "Ready when you are"}
+                        {previewError
+                          ? "Preview unavailable; choose another format"
+                          : result
+                            ? `${Array.isArray(result.value) ? `${result.value.length} ${objectTemplate ? "objects" : "items"} · ` : ""}${new TextEncoder().encode(output).length.toLocaleString()} bytes · ready to export`
+                            : "Ready when you are"}
                       </span>
                       <button
                         type="button"
                         className="text-button copy-button"
                         onClick={() => void copy()}
-                        disabled={!result}
+                        disabled={!preview?.ok}
                       >
                         <Icon name="copy" />
                         Copy output
@@ -838,24 +996,18 @@ function App() {
                       </div>
                     </div>
                     <div className="export-actions">
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={!result}
-                        onClick={() => download("json")}
-                      >
-                        <Icon name="download" />
-                        Export JSON
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={!result}
-                        onClick={() => download("csv")}
-                      >
-                        <Icon name="download" />
-                        Export CSV
-                      </button>
+                      {EXPORT_FORMATS.map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className="secondary-button"
+                          disabled={!result}
+                          onClick={() => download(value)}
+                        >
+                          <Icon name="download" />
+                          Export {value.toUpperCase()}
+                        </button>
+                      ))}
                     </div>
                   </section>
                 </div>

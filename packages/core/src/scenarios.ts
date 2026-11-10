@@ -1,4 +1,9 @@
-import type { FieldGenerator, GeneratorKind } from "./fields.js";
+import {
+  type FieldGenerator,
+  type GeneratorKind,
+  type GeneratorSettings,
+  parseFieldGenerators,
+} from "./fields.js";
 import type { JsonValue } from "./generate.js";
 import { generateRecords } from "./records.js";
 
@@ -16,12 +21,19 @@ function scenario(
   name: string,
   category: string,
   description: string,
-  definitions: Record<string, Exclude<GeneratorKind, "auto">>,
+  definitions: Record<
+    string,
+    Exclude<GeneratorKind, "auto" | "enum"> | GeneratorSettings
+  >,
 ): Scenario {
-  const fields = Object.entries(definitions).map(([path, generator]) => ({
-    path: path.split("."),
-    generator,
-  }));
+  const fields = parseFieldGenerators(
+    Object.entries(definitions).map(([path, definition]) => ({
+      path: path.split("."),
+      ...(typeof definition === "string"
+        ? { generator: definition }
+        : definition),
+    })),
+  );
   const records = generateRecords({ seed: `fixture-${id}`, count: 1, fields });
   if (!Array.isArray(records) || records[0] === undefined) {
     throw new Error("Could not construct the scenario template.");
@@ -39,6 +51,7 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       name: "name",
       email: "email",
+      role: { generator: "enum", values: ["member", "editor", "admin"] },
       active: "boolean",
       created_at: "date",
     },
@@ -53,7 +66,11 @@ export const SCENARIOS: readonly Scenario[] = [
       "profile.name": "name",
       "profile.email": "email",
       "preferences.notifications": "boolean",
-      "metrics.score": "number",
+      "preferences.theme": {
+        generator: "enum",
+        values: ["light", "dark", "system"],
+      },
+      "metrics.score": { generator: "number", min: 0, max: 100 },
       updated_at: "date",
     },
   ),
@@ -64,10 +81,13 @@ export const SCENARIOS: readonly Scenario[] = [
     "Team directories, owners and membership counts.",
     {
       id: "uuid",
-      label: "string",
+      label: {
+        generator: "enum",
+        values: ["Platform", "Design", "Support", "Operations"],
+      },
       "owner.name": "name",
       "owner.email": "email",
-      member_count: "number",
+      member_count: { generator: "number", min: 1, max: 50 },
       created_at: "date",
     },
   ),
@@ -78,7 +98,10 @@ export const SCENARIOS: readonly Scenario[] = [
     "Multi-tenant dashboards and organization settings.",
     {
       id: "uuid",
-      company: "string",
+      company: {
+        generator: "enum",
+        values: ["Example Labs", "Demo Studio", "Sample Works"],
+      },
       contact_email: "email",
       verified: "boolean",
       "billing.contact": "name",
@@ -94,8 +117,14 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       name: "name",
       email: "email",
-      "address.city": "string",
-      "address.country": "string",
+      "address.city": {
+        generator: "enum",
+        values: ["Sampleton", "Demo City", "Example Bay"],
+      },
+      "address.country": {
+        generator: "enum",
+        values: ["US", "GB", "DE", "FI"],
+      },
       favorite: "boolean",
     },
   ),
@@ -106,9 +135,21 @@ export const SCENARIOS: readonly Scenario[] = [
     "Product grids, detail pages and price displays.",
     {
       id: "uuid",
-      title: "string",
+      title: {
+        generator: "enum",
+        values: [
+          "Test notebook",
+          "Demo backpack",
+          "Sample mug",
+          "Fixture lamp",
+        ],
+      },
       sku: "string",
-      price_cents: "number",
+      price_cents: { generator: "number", min: 99, max: 99_999 },
+      category: {
+        generator: "enum",
+        values: ["office", "home", "electronics"],
+      },
       in_stock: "boolean",
       created_at: "date",
     },
@@ -122,7 +163,12 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       "customer.name": "name",
       "customer.email": "email",
-      total_cents: "number",
+      total_cents: { generator: "number", min: 0, max: 250_000 },
+      status: {
+        generator: "enum",
+        values: ["pending", "paid", "shipped", "cancelled"],
+      },
+      currency: { generator: "enum", values: ["USD", "EUR", "GBP"] },
       fulfilled: "boolean",
       placed_at: "date",
     },
@@ -136,8 +182,8 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       cart_id: "uuid",
       product_id: "uuid",
-      quantity: "number",
-      unit_price_cents: "number",
+      quantity: { generator: "number", min: 1, max: 20 },
+      unit_price_cents: { generator: "number", min: 99, max: 99_999 },
       saved_for_later: "boolean",
     },
   ),
@@ -150,8 +196,8 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       sku: "string",
       "warehouse.code": "string",
-      available: "number",
-      reserved: "number",
+      available: { generator: "number", min: 0, max: 500 },
+      reserved: { generator: "number", min: 0, max: 50 },
       last_checked_at: "date",
     },
   ),
@@ -165,6 +211,7 @@ export const SCENARIOS: readonly Scenario[] = [
       order_id: "uuid",
       recipient: "name",
       tracking_reference: "string",
+      service: { generator: "enum", values: ["standard", "express", "pickup"] },
       delivered: "boolean",
       dispatched_at: "date",
     },
@@ -177,7 +224,12 @@ export const SCENARIOS: readonly Scenario[] = [
     {
       id: "uuid",
       payer_email: "email",
-      amount_cents: "number",
+      amount_cents: { generator: "number", min: 100, max: 500_000 },
+      currency: { generator: "enum", values: ["USD", "EUR", "GBP"] },
+      method: {
+        generator: "enum",
+        values: ["card", "bank_transfer", "wallet"],
+      },
       captured: "boolean",
       reference: "string",
       paid_at: "date",
@@ -193,7 +245,8 @@ export const SCENARIOS: readonly Scenario[] = [
       invoice_number: "string",
       "customer.name": "name",
       "customer.email": "email",
-      total_cents: "number",
+      total_cents: { generator: "number", min: 100, max: 1_000_000 },
+      currency: { generator: "enum", values: ["USD", "EUR", "GBP"] },
       paid: "boolean",
       due_at: "date",
     },
@@ -207,7 +260,8 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       customer_id: "uuid",
       contact_email: "email",
-      monthly_price_cents: "number",
+      monthly_price_cents: { generator: "number", min: 500, max: 50_000 },
+      plan: { generator: "enum", values: ["starter", "team", "business"] },
       active: "boolean",
       renews_at: "date",
     },
@@ -221,7 +275,8 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       account_id: "uuid",
       description: "string",
-      amount_cents: "number",
+      amount_cents: { generator: "number", min: -250_000, max: 250_000 },
+      currency: { generator: "enum", values: ["USD", "EUR", "GBP"] },
       reconciled: "boolean",
       recorded_at: "date",
     },
@@ -235,7 +290,11 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       payment_id: "uuid",
       requester_email: "email",
-      amount_cents: "number",
+      amount_cents: { generator: "number", min: 100, max: 250_000 },
+      reason: {
+        generator: "enum",
+        values: ["duplicate", "returned", "customer_request"],
+      },
       approved: "boolean",
       requested_at: "date",
     },
@@ -249,7 +308,11 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       title: "string",
       "owner.name": "name",
-      budget_cents: "number",
+      budget_cents: { generator: "number", min: 10_000, max: 50_000_000 },
+      status: {
+        generator: "enum",
+        values: ["planning", "active", "on_hold", "done"],
+      },
       archived: "boolean",
       starts_at: "date",
     },
@@ -264,6 +327,10 @@ export const SCENARIOS: readonly Scenario[] = [
       title: "string",
       "assignee.name": "name",
       "assignee.email": "email",
+      priority: {
+        generator: "enum",
+        values: ["low", "normal", "high", "urgent"],
+      },
       completed: "boolean",
       due_at: "date",
     },
@@ -278,6 +345,10 @@ export const SCENARIOS: readonly Scenario[] = [
       subject: "string",
       "requester.name": "name",
       "requester.email": "email",
+      category: {
+        generator: "enum",
+        values: ["billing", "technical", "account"],
+      },
       resolved: "boolean",
       opened_at: "date",
     },
@@ -293,6 +364,7 @@ export const SCENARIOS: readonly Scenario[] = [
       attendee: "name",
       contact_email: "email",
       confirmed: "boolean",
+      duration_minutes: { generator: "number", min: 15, max: 120 },
       scheduled_at: "date",
     },
   ),
@@ -305,7 +377,7 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       employee: "name",
       project_id: "uuid",
-      duration_minutes: "number",
+      duration_minutes: { generator: "number", min: 15, max: 480 },
       approved: "boolean",
       logged_at: "date",
     },
@@ -321,6 +393,7 @@ export const SCENARIOS: readonly Scenario[] = [
       body: "string",
       "author.name": "name",
       published: "boolean",
+      category: { generator: "enum", values: ["news", "guides", "updates"] },
       published_at: "date",
     },
   ),
@@ -336,6 +409,7 @@ export const SCENARIOS: readonly Scenario[] = [
       body: "string",
       approved: "boolean",
       created_at: "date",
+      channel: { generator: "enum", values: ["web", "mobile", "api"] },
     },
   ),
   scenario(
@@ -348,6 +422,7 @@ export const SCENARIOS: readonly Scenario[] = [
       product_id: "uuid",
       reviewer: "name",
       feedback: "string",
+      rating: { generator: "number", min: 1, max: 5 },
       verified_purchase: "boolean",
       created_at: "date",
     },
@@ -362,6 +437,7 @@ export const SCENARIOS: readonly Scenario[] = [
       recipient_id: "uuid",
       title: "string",
       message: "string",
+      channel: { generator: "enum", values: ["in_app", "email", "push"] },
       read: "boolean",
       sent_at: "date",
     },
@@ -378,6 +454,7 @@ export const SCENARIOS: readonly Scenario[] = [
       subject: "string",
       body: "string",
       unread: "boolean",
+      folder: { generator: "enum", values: ["inbox", "archive", "sent"] },
       sent_at: "date",
     },
   ),
@@ -390,7 +467,10 @@ export const SCENARIOS: readonly Scenario[] = [
       id: "uuid",
       "actor.name": "name",
       "actor.email": "email",
-      action: "string",
+      action: {
+        generator: "enum",
+        values: ["created", "updated", "deleted", "signed_in"],
+      },
       resource_id: "uuid",
       success: "boolean",
       occurred_at: "date",
@@ -404,7 +484,10 @@ export const SCENARIOS: readonly Scenario[] = [
     {
       id: "uuid",
       user_id: "uuid",
-      device_label: "string",
+      device_label: {
+        generator: "enum",
+        values: ["Desktop browser", "Mobile browser", "Tablet browser"],
+      },
       active: "boolean",
       created_at: "date",
       expires_at: "date",
@@ -418,8 +501,11 @@ export const SCENARIOS: readonly Scenario[] = [
     {
       id: "uuid",
       event_id: "uuid",
-      event_name: "string",
-      attempt: "number",
+      event_name: {
+        generator: "enum",
+        values: ["order.created", "payment.completed", "user.updated"],
+      },
+      attempt: { generator: "number", min: 1, max: 5 },
       delivered: "boolean",
       delivered_at: "date",
     },
@@ -432,9 +518,15 @@ export const SCENARIOS: readonly Scenario[] = [
     {
       id: "uuid",
       session_id: "uuid",
-      event_name: "string",
-      "properties.page": "string",
-      "properties.duration_ms": "number",
+      event_name: {
+        generator: "enum",
+        values: ["page_view", "button_click", "form_submit"],
+      },
+      "properties.page": {
+        generator: "enum",
+        values: ["/", "/products", "/checkout", "/account"],
+      },
+      "properties.duration_ms": { generator: "number", min: 0, max: 300_000 },
       occurred_at: "date",
     },
   ),
@@ -446,8 +538,8 @@ export const SCENARIOS: readonly Scenario[] = [
     {
       id: "uuid",
       device_id: "uuid",
-      "measurement.value": "number",
-      "measurement.label": "string",
+      "measurement.value": { generator: "number", min: -20, max: 60 },
+      "measurement.label": { generator: "enum", values: ["temperature_c"] },
       online: "boolean",
       measured_at: "date",
     },

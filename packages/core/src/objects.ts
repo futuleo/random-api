@@ -59,6 +59,7 @@ export function generateSimilarObjects(
     ),
     {
       seed: options.seed,
+      locale: options.locale,
       fields: fields.filter((field) =>
         selectedPaths.has(JSON.stringify(field.path)),
       ),

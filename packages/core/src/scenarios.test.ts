@@ -128,6 +128,28 @@ describe("scenario catalog", () => {
       expect(JSON.parse(serializeOutput(result, "json"))).toHaveLength(12);
       expect(serializeOutput(result, "csv").split("\r\n")).toHaveLength(14);
       expect(JSON.stringify(scenario)).toBe(before);
+      if (!Array.isArray(result)) throw new Error("Missing records.");
+      for (const row of result) {
+        for (const field of scenario.fields) {
+          let value = row;
+          for (const segment of field.path) {
+            if (
+              value === null ||
+              typeof value !== "object" ||
+              Array.isArray(value) ||
+              value[segment] === undefined
+            )
+              throw new Error("Missing scenario field.");
+            value = value[segment];
+          }
+          if (field.generator === "number") {
+            expect(value).toBeGreaterThanOrEqual(field.min ?? 0);
+            expect(value).toBeLessThanOrEqual(field.max ?? 999_999);
+            expect(Number.isInteger(value)).toBe(true);
+          }
+          if (field.generator === "enum") expect(field.values).toContain(value);
+        }
+      }
     });
   }
 });

@@ -138,6 +138,43 @@ describe("CLI", () => {
     expect(result.stdout).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-4/);
     expect(result.stdout).not.toContain("SENTINEL");
   });
+  it("supports range and enum overrides plus XML and JSONL files", async () => {
+    const fields = join(directory, "constraints.json");
+    await writeFile(
+      fields,
+      JSON.stringify([
+        { path: ["name"], generator: "enum", values: ["ready", "waiting"] },
+        { path: ["count"], generator: "number", min: -2, max: 2 },
+      ]),
+    );
+    const generated = run(
+      "--input",
+      input,
+      "--generate",
+      "--count",
+      "25",
+      "--fields",
+      fields,
+      "--format",
+      "jsonl",
+    );
+    expect(generated.status).toBe(0);
+    const rows: { name: string; count: number }[] = generated.stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(rows).toHaveLength(25);
+    for (const row of rows) {
+      expect(["ready", "waiting"]).toContain(row.name);
+      expect(row.count).toBeGreaterThanOrEqual(-2);
+      expect(row.count).toBeLessThanOrEqual(2);
+    }
+    expect(generated.stdout).not.toContain("SENTINEL");
+    const xml = run("--scenario", "orders", "--count", "3", "--format", "xml");
+    expect(xml.status).toBe(0);
+    expect(xml.stdout).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+    expect(xml.stdout.match(/<item type="object">/g)).toHaveLength(3);
+  });
 
   it("writes new files without overwriting existing output or the input", async () => {
     const output = join(directory, "generated.csv");

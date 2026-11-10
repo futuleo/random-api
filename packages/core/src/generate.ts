@@ -8,6 +8,7 @@ export type JsonValue =
 
 export interface GenerationOptions {
   readonly seed: string;
+  readonly locale?: Locale | undefined;
   readonly fields?: readonly FieldGenerator[];
 }
 
@@ -25,8 +26,9 @@ export function generateSyntheticData(
     throw new RangeError("Seed must contain at most 256 characters.");
   }
   const settings = parseFieldGenerators(options.fields ?? []);
+  const locale = parseLocale(options.locale);
   const generators = new Map(
-    settings.map((field) => [JSON.stringify(field.path), field.generator]),
+    settings.map((field) => [JSON.stringify(field.path), field]),
   );
   const matched = new Set<string>();
 
@@ -55,9 +57,13 @@ export function generateSyntheticData(
     }
 
     const id = JSON.stringify(path);
-    const kind = generators.get(id);
-    if (kind !== undefined) matched.add(id);
-    if (kind !== undefined && kind !== "auto" && !Array.isArray(value)) {
+    const field = generators.get(id);
+    if (field !== undefined) matched.add(id);
+    if (
+      field !== undefined &&
+      field.generator !== "auto" &&
+      !Array.isArray(value)
+    ) {
       if (value !== null && typeof value === "object") {
         throw new TypeError("Field generators must target primitive values.");
       }
@@ -68,7 +74,7 @@ export function generateSyntheticData(
       ) {
         throw new TypeError("Input must contain only JSON-compatible values.");
       }
-      return generateFieldValue(kind, random);
+      return generateFieldValue(field, random, locale);
     }
     if (value === null) return null;
     if (typeof value === "string") {
@@ -118,3 +124,4 @@ import {
   parseFieldGenerators,
 } from "./fields.js";
 import type { KeyPath } from "./index.js";
+import { type Locale, parseLocale } from "./locale.js";

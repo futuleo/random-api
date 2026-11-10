@@ -2,6 +2,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import {
+  EXPORT_FORMATS,
   extractKeyPaths,
   generateSimilarObjects,
   generateSyntheticData,
@@ -58,13 +59,14 @@ async function main(): Promise<void> {
         "      --list-scenarios     List all 30 built-in scenarios as JSON",
         '      --seed <text>        Reproducible seed (default: "random-api")',
         "      --field <path=kind>   Repeatable; e.g. '[\"email\"]=email'",
-        "      --fields <file>       JSON array of {path, generator} settings",
-        "      --format json|csv     Export format (default: json)",
+        "      --fields <file>       JSON settings, including ranges and choices",
+        "      --format <format>     json, csv, xml or jsonl (default: json)",
         "  -o, --output <file>      Write a new file; never overwrite",
         "  -h, --help               Show this guide",
         "",
         "GENERATORS",
-        "  auto  email  name  date  uuid  string  number  boolean",
+        "  auto  email  name  date  uuid  string  number  boolean  enum",
+        "  Use --fields for number min/max and enum values.",
         "",
         "EXAMPLE",
         "  pnpm cli --input users.json --generate --field '[\"email\"]=email'",
@@ -136,8 +138,9 @@ async function main(): Promise<void> {
     validateRecordCount(count);
   }
   const format = options.values.format ?? "json";
-  if (format !== "json" && format !== "csv") {
-    throw new Error("Export format must be json or csv.");
+  const exportFormat = EXPORT_FORMATS.find((item) => item === format);
+  if (exportFormat === undefined) {
+    throw new Error("Export format must be json, csv, xml or jsonl.");
   }
 
   const rawFields: unknown[] = [];
@@ -208,7 +211,7 @@ async function main(): Promise<void> {
       ? generateSyntheticData(document, generationOptions)
       : generateSimilarObjects(document, { ...generationOptions, count })
     : extractKeyPaths(document).map((path) => [...path]);
-  const output = serializeOutput(result, format);
+  const output = serializeOutput(result, exportFormat);
   if (typeof options.values.output === "string") {
     try {
       await writeFile(options.values.output, output, { flag: "wx" });
@@ -222,7 +225,7 @@ async function main(): Promise<void> {
   }
   if (process.stderr.isTTY) {
     process.stderr.write(
-      `\n${accent("Random API")} / ${generating ? "Generated" : "Inspected"} locally / ${format.toUpperCase()} / ${typeof options.values.output === "string" ? "File saved" : "Complete"}\n`,
+      `\n${accent("Random API")} / ${generating ? "Generated" : "Inspected"} locally / ${exportFormat.toUpperCase()} / ${typeof options.values.output === "string" ? "File saved" : "Complete"}\n`,
     );
   }
 }

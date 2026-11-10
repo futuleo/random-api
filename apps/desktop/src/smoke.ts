@@ -25,6 +25,9 @@ export type GenerationSmokeStage =
   | "download directory creation"
   | "JSON blob download"
   | "CSV blob download"
+  | "XML blob download"
+  | "JSONL blob download"
+  | "recoverable format errors"
   | "download cleanup";
 
 function isGeneratedRecord(record: unknown): record is GeneratedRecord {
@@ -213,7 +216,7 @@ export async function verifyGenerationAndExports(
   registerCleanup(cleanup);
 
   async function verifyDownload(
-    format: "json" | "csv",
+    format: "json" | "csv" | "xml" | "jsonl",
     expectedContent: string,
   ): Promise<void> {
     const filename = `synthetic-data.${format}`;
@@ -280,5 +283,47 @@ export async function verifyGenerationAndExports(
   await verifyDownload("json", json);
   setStage("CSV blob download");
   await verifyDownload("csv", expectedCsv(records));
+  setStage("XML blob download");
+  const xml: unknown = await run(`(async () => {
+    ${helpers}
+    clickButton("XML");
+    await waitFor(() => document.querySelector(".output-code").textContent.startsWith("<?xml"));
+    const text = document.querySelector(".output-code").textContent;
+    const documentXml = new DOMParser().parseFromString(text, "application/xml");
+    if (documentXml.querySelector("parsererror") || documentXml.documentElement.getAttribute("type") !== "array") {
+      throw new Error("XML document validation failed.");
+    }
+    const rows = Array.from(documentXml.documentElement.children).map((item) =>
+      Object.fromEntries(Array.from(item.children).map((field) => {
+        if (field.tagName !== "field" || field.getAttribute("type") !== "string") {
+          throw new Error("XML field validation failed.");
+        }
+        return [field.getAttribute("name"), field.textContent];
+      })));
+    if (JSON.stringify(rows) !== ${JSON.stringify(JSON.stringify(records))}) throw new Error("XML content validation failed.");
+    return text;
+  })()`);
+  if (typeof xml !== "string") throw new Error("Missing XML preview.");
+  await verifyDownload("xml", xml);
+  setStage("JSONL blob download");
+  const jsonl = `${records.map((record) => JSON.stringify(record)).join("\n")}\n`;
+  await verifyDownload("jsonl", jsonl);
+  setStage("recoverable format errors");
+  await run(`(async () => {
+    ${helpers}
+    clickButton("JSON");
+    setInput("#source", ${JSON.stringify(JSON.stringify({ "\u0000": "DESKTOP_SMOKE_SENTINEL" }))}, HTMLTextAreaElement.prototype);
+    await waitFor(() => document.querySelectorAll(".field-row select").length === 1);
+    clickButton("Generate data");
+    await waitFor(() => document.querySelector(".output-code"));
+    const original = document.querySelector(".output-code").textContent;
+    clickButton("XML");
+    await waitFor(() => document.querySelector(".preview-error"));
+    if (!document.querySelector("#source") || !document.querySelector(".control-strip") ||
+        !document.querySelector(".copy-button").disabled) throw new Error("Format error discarded the studio.");
+    clickButton("JSON");
+    await waitFor(() => document.querySelector(".output-code"));
+    if (document.querySelector(".output-code").textContent !== original) throw new Error("Format error discarded generated data.");
+  })()`);
   setStage("download cleanup");
 }

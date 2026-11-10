@@ -1,9 +1,11 @@
 import { type FieldGenerator, parseFieldGenerators } from "./fields.js";
 import { generateSyntheticData, type JsonValue } from "./generate.js";
+import type { Locale } from "./locale.js";
 import { validateRecordCount } from "./objects.js";
 
 export interface RecordSettings {
   readonly seed: string;
+  readonly locale?: Locale | undefined;
   readonly count: number;
   readonly fields: readonly FieldGenerator[];
 }
@@ -66,6 +68,6 @@ export function generateRecords(settings: RecordSettings): JsonValue {
   }
   return generateSyntheticData(
     Array.from({ length: settings.count }, () => template),
-    { seed: settings.seed, fields },
+    { seed: settings.seed, locale: settings.locale, fields },
   );
 }
