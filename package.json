@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "pnpm --filter @random-api/core build && pnpm --filter @random-api/web dev",
     "dev:api": "pnpm --filter @random-api/core build && pnpm --filter @random-api/api dev",
+    "dev:docs": "pnpm --filter @random-api/docs dev --host 127.0.0.1 --port 5174",
+    "docs:build": "pnpm --filter @random-api/docs build",
+    "docs:preview": "pnpm --filter @random-api/docs preview --host 127.0.0.1 --port 4174",
     "package:cli": "pnpm --filter randomapi-studio pack --pack-destination apps/cli",
     "test:cli": "node apps/cli/scripts/smoke.ts",
     "dev:desktop": "pnpm --filter @random-api/core build && pnpm --filter @random-api/desktop dev",

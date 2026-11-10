@@ -28,6 +28,7 @@ export type GenerationSmokeStage =
   | "XML blob download"
   | "JSONL blob download"
   | "recoverable format errors"
+  | "localized preset and custom settings"
   | "download cleanup";
 
 function isGeneratedRecord(record: unknown): record is GeneratedRecord {
@@ -324,6 +325,53 @@ export async function verifyGenerationAndExports(
     clickButton("JSON");
     await waitFor(() => document.querySelector(".output-code"));
     if (document.querySelector(".output-code").textContent !== original) throw new Error("Format error discarded generated data.");
+  })()`);
+  setStage("localized preset and custom settings");
+  await run(`(async () => {
+    ${helpers}
+    const select = (selector, value) => {
+      const element = document.querySelector(selector);
+      element.value = value;
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    select("#scenario", "products");
+    await waitFor(() => document.querySelector(".enum-options textarea"));
+    select("#data-language", "fi");
+    await waitFor(() => document.querySelector('#scenario option[value="products"]').textContent === "Tuotteet");
+    setInput(".enum-options textarea", "CUSTOM_OPTION", HTMLTextAreaElement.prototype);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const sku = Array.from(document.querySelectorAll(".field-row")).find((row) =>
+      row.querySelector("code").textContent.includes('"sku"')).querySelector("select");
+    sku.value = "email";
+    sku.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    select("#data-language", "ru");
+    await waitFor(() => document.querySelector('#scenario option[value="products"]').textContent === "Товары");
+    if (document.querySelector(".enum-options textarea").value !== "CUSTOM_OPTION" ||
+        Array.from(document.querySelectorAll(".field-row")).find((row) =>
+          row.querySelector("code").textContent.includes('"sku"')).querySelector("select").value !== "email")
+      throw new Error("Language switch discarded custom field settings.");
+    clickButton("Generate data");
+    await waitFor(() => document.querySelector(".output-code"));
+    const rows = JSON.parse(document.querySelector(".output-code").textContent);
+    if (!rows.every((row) => row.title === "CUSTOM_OPTION" && row.sku.endsWith("@example.test")))
+      throw new Error("Localized generation ignored manual choices.");
+    const source = '{"name":"DESKTOP_SMOKE_SENTINEL","label":"DESKTOP_SMOKE_SENTINEL_TEXT"}';
+    setInput("#source", source, HTMLTextAreaElement.prototype);
+    await waitFor(() => document.querySelectorAll(".field-row select").length === 2);
+    clickButton("Suggest from keys");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    for (const locale of ["en", "fi", "sv", "ru", "es"]) {
+      select("#data-language", locale);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (document.querySelector("#source").value !== source ||
+          document.querySelector(".field-row select").value !== "name")
+        throw new Error("Language switch discarded custom source.");
+      clickButton("Generate data");
+      await waitFor(() => document.querySelector(".output-code"));
+      if (document.querySelector(".output-code").textContent.includes("DESKTOP_SMOKE_SENTINEL"))
+        throw new Error("Localized generation copied source values.");
+    }
   })()`);
   setStage("download cleanup");
 }

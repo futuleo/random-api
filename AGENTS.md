@@ -6,6 +6,9 @@
 - Install with `pnpm install --frozen-lockfile`.
 - Start the website with `pnpm dev`.
 - Start the standalone REST backend with `pnpm dev:api`.
+- Start the VitePress documentation with `pnpm dev:docs` (loopback port 5174).
+- Build the standalone `rgen` tarball with `pnpm package:cli`. It bundles the
+  core; the `randomapi-studio` registry name is not reserved or published.
 - Start the Electron desktop app with `pnpm dev:desktop`; it uses the same
   React distribution as the website.
 - Run `pnpm test:desktop` for a real Electron smoke test and
@@ -27,6 +30,9 @@
   sandboxing and context isolation enabled, Node integration disabled, and
   navigation, popups and unneeded permissions blocked. Do not duplicate domain
   logic or introduce renderer access to Node or arbitrary filesystem paths.
+- `apps/docs`: static VitePress documentation in five languages. Generate the
+  scenario catalog and examples from core at build time; keep search local and
+  do not introduce runtime provider requests or original source documents.
 - Use ESM, strict TypeScript, and `workspace:*` for internal dependencies.
 - Keep tooling simple; do not introduce a task orchestrator until it is needed.
 

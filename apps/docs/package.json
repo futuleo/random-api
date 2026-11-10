@@ -1,0 +1,18 @@
+{
+  "name": "@random-api/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @random-api/core build && vitepress dev",
+    "build": "pnpm --filter @random-api/core build && tsc --noEmit && vitepress build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "@random-api/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

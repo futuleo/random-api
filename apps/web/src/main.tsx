@@ -10,8 +10,12 @@ import {
   getScenario,
   inspectLocalFields,
   isGeneratorKind,
+  isLocale,
   isObjectTemplate,
   type JsonValue,
+  LOCALE_NAMES,
+  LOCALES,
+  type Locale,
   SCENARIOS,
   type Scenario,
   serializeOutput,
@@ -24,7 +28,6 @@ import "./style.css";
 
 const DEFAULT_SCENARIO = getScenario("users");
 const EXAMPLE = JSON.stringify(DEFAULT_SCENARIO.template, null, 2);
-const CATEGORIES = ["All", ...new Set(SCENARIOS.map((item) => item.category))];
 
 const LABELS: Record<GeneratorKind, string> = {
   auto: "Auto · preserve type",
@@ -122,6 +125,15 @@ function JsonCode({ text }: { text: string }) {
 }
 
 function App() {
+  const [locale, setLocale] = useState<Locale>("en");
+  const scenarios = useMemo(
+    () => SCENARIOS.map(({ id }) => getScenario(id, locale)),
+    [locale],
+  );
+  const categories = [
+    "All",
+    ...new Set(scenarios.map((item) => item.category)),
+  ];
   const [input, setInput] = useState(EXAMPLE);
   const [count, setCount] = useState("10");
   const [settings, setSettings] = useState<readonly FieldGenerator[]>(
@@ -173,7 +185,7 @@ function App() {
   }, [input]);
   const objectTemplate =
     analysis.error === null && isObjectTemplate(analysis.document);
-  const filteredScenarios = SCENARIOS.filter(
+  const filteredScenarios = scenarios.filter(
     (item) =>
       (category === "All" || item.category === category) &&
       `${item.name} ${item.category} ${item.description}`
@@ -199,6 +211,31 @@ function App() {
     setFieldDrafts({});
     setSelectedScenario(scenario.id);
     setShowScenarios(false);
+    invalidate();
+  }
+  function changeLocale(next: Locale) {
+    if (next === locale) return;
+    if (selectedScenario !== null) {
+      const previous = getScenario(selectedScenario, locale);
+      const localized = getScenario(selectedScenario, next);
+      setInput(JSON.stringify(localized.template, null, 2));
+      setSettings((current) =>
+        current.map((setting) => {
+          const index = previous.fields.findIndex(
+            (field) =>
+              JSON.stringify(field.path) === JSON.stringify(setting.path),
+          );
+          const replacement = localized.fields[index];
+          return replacement &&
+            JSON.stringify(setting) === JSON.stringify(previous.fields[index])
+            ? replacement
+            : setting;
+        }),
+      );
+    }
+    setLocale(next);
+    setCategory("All");
+    setScenarioQuery("");
     invalidate();
   }
   function choose(path: readonly string[], generator: GeneratorKind) {
@@ -242,6 +279,7 @@ function App() {
     try {
       const options = {
         seed: crypto.randomUUID(),
+        locale,
         fields: settings.map((setting): FieldGenerator => {
           const draft = fieldDrafts[JSON.stringify(setting.path)];
           if (setting.generator === "number")
@@ -421,8 +459,53 @@ function App() {
               LOCAL WORKSPACE <span className="status-dot" />
             </span>
           </div>
+          <div className="language-bar">
+            <label htmlFor="data-language">Data language</label>
+            <select
+              id="data-language"
+              className="language-select"
+              value={locale}
+              onChange={(event) => {
+                if (isLocale(event.target.value))
+                  changeLocale(event.target.value);
+              }}
+            >
+              {LOCALES.map((language) => (
+                <option key={language} value={language}>
+                  {LOCALE_NAMES[language]}
+                </option>
+              ))}
+            </select>
+          </div>
           {view === "guide" ? (
             <section className="guide-grid">
+              <article className="panel guide-card full-width">
+                <Icon name="code" />
+                <h2>Full documentation, powered by VitePress.</h2>
+                <p>
+                  Guides for every interface, local search and all 30 scenarios
+                  with actual settings, examples and rgen commands. Available in
+                  English, Finnish, Swedish, Russian and Spanish.
+                </p>
+                <pre>
+                  <code>pnpm dev:docs</code>
+                </pre>
+                <p>
+                  Open the loopback address printed by the command. For a
+                  deployed documentation site, set VITE_DOCS_URL when building
+                  the website.
+                </p>
+                {typeof import.meta.env.VITE_DOCS_URL === "string" &&
+                  /^https?:\/\//.test(import.meta.env.VITE_DOCS_URL) && (
+                    <a
+                      href={import.meta.env.VITE_DOCS_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open documentation
+                    </a>
+                  )}
+              </article>
               <article className="panel guide-card">
                 <Icon name="terminal" />
                 <h2>A small CLI. A lot of possibilities.</h2>
@@ -511,7 +594,7 @@ function App() {
                     className="scenario-categories"
                     aria-label="Scenario categories"
                   >
-                    {CATEGORIES.map((item) => (
+                    {categories.map((item) => (
                       <button
                         key={item}
                         type="button"
@@ -576,7 +659,9 @@ function App() {
                         <button
                           type="button"
                           className="text-button"
-                          onClick={() => loadScenario(DEFAULT_SCENARIO)}
+                          onClick={() =>
+                            loadScenario(getScenario("users", locale))
+                          }
                         >
                           Load example
                         </button>
@@ -609,25 +694,32 @@ function App() {
                           value={selectedScenario ?? ""}
                           onChange={(event) => {
                             if (event.target.value)
-                              loadScenario(getScenario(event.target.value));
+                              loadScenario(
+                                getScenario(event.target.value, locale),
+                              );
                           }}
                         >
                           <option value="" disabled>
                             Custom JSON
                           </option>
-                          {CATEGORIES.filter((item) => item !== "All").map(
-                            (group) => (
+                          {categories
+                            .filter((item) => item !== "All")
+                            .map((group) => (
                               <optgroup key={group} label={group}>
-                                {SCENARIOS.filter(
-                                  (scenario) => scenario.category === group,
-                                ).map((scenario) => (
-                                  <option key={scenario.id} value={scenario.id}>
-                                    {scenario.name}
-                                  </option>
-                                ))}
+                                {scenarios
+                                  .filter(
+                                    (scenario) => scenario.category === group,
+                                  )
+                                  .map((scenario) => (
+                                    <option
+                                      key={scenario.id}
+                                      value={scenario.id}
+                                    >
+                                      {scenario.name}
+                                    </option>
+                                  ))}
                               </optgroup>
-                            ),
-                          )}
+                            ))}
                         </select>
                       </label>
                       <button

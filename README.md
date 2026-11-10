@@ -1,7 +1,8 @@
 # Random API
 
 A private, local-first synthetic data studio. Choose one of 30 testing scenarios
-or import JSON, pick an object count and field generators, and export JSON or CSV.
+or import JSON, pick an object count and field generators, and export JSON, CSV,
+XML or JSONL.
 The website, CLI and
 Electron desktop application share one deterministic TypeScript engine.
 
@@ -20,6 +21,7 @@ pnpm install --frozen-lockfile
 pnpm dev                # React website on loopback
 pnpm dev:desktop        # Electron app, using the same React UI
 pnpm dev:api            # optional REST service on 127.0.0.1:3000
+pnpm dev:docs           # VitePress documentation on 127.0.0.1:5174
 pnpm check              # formatting, lint, types, tests and production builds
 pnpm test:desktop       # build and run the actual Electron smoke test
 pnpm package:desktop    # unsigned app directory for the current platform
@@ -29,6 +31,28 @@ Web and desktop commands build their shared dependencies first. The web dev
 server does not watch shared-package output: restart it after changing `core`.
 The desktop command loads a production React build, not a remote dev URL; restart
 it after changes. Electron downloads a platform binary on installation/first run.
+
+## Documentation
+
+`pnpm dev:docs` opens the VitePress site on `127.0.0.1:5174`.
+`pnpm docs:build` creates static HTML in `apps/docs/.vitepress/dist`;
+`pnpm docs:preview` serves that build on loopback port 4174. For subpath hosting,
+build with `DOCS_BASE=/your-prefix/`. Set `VITE_DOCS_URL` at web build time to
+link a deployed HTTP(S) documentation site from the developer guide.
+
+English, Finnish, Swedish, Russian and Spanish guides cover each application,
+CLI commands, generator settings, exports, architecture and privacy. The
+search index is local. All 30 scenario pages per language include actual core
+settings, deterministic generated examples and copyable `rgen` commands.
+
+## Data languages
+
+Use **Data language** in web/Electron, `--locale en|fi|sv|ru|es` in `rgen`, or
+`locale` in core/REST options. Names, synthetic text, scenario labels and
+human-readable preset choices use that dictionary. Keys, paths, machine codes
+and caller-provided enum choices stay literal. Changing data language preserves
+custom source, generator overrides and choice drafts, and clears stale output.
+The studio's interface captions currently remain English.
 
 ## Data studio
 
@@ -43,7 +67,7 @@ Nothing is automatically saved.
 2. Select generators in **Field generators** below the source. **Suggest from keys** uses field
    names only and lets you review the choices before generating.
 3. Choose **Objects** (1–1000; default 10) and select **Generate data** in the
-   output panel. Preview JSON or CSV; copy or export the generated
+   output panel. Preview JSON, CSV, XML or JSONL; copy or export the generated
    output. Each run produces fresh values automatically; no seed setting is
    exposed. Editing the source, count or mappings clears stale output.
 
@@ -95,6 +119,24 @@ Local field inspection is also bounded; key inspection alone is not a full schem
 
 ## CLI
 
+The short command is **`rgen`**. Build and install its standalone tarball:
+
+```sh
+pnpm package:cli
+npm install --global ./apps/cli/randomapi-studio-0.1.0.tgz
+rgen --version
+rgen scenarios --locale fi
+rgen scenario users --count 30 --locale ru
+rgen generate -i examples/input.json --count 20 --format xml
+rgen inspect -i examples/input.json
+```
+
+The tarball bundles core, without unpublished runtime workspace dependencies.
+`random-api` remains a compatibility alias. `randomapi-studio` is the proposed
+npm package name, **not reserved or published**; npm authentication is required
+for publication. No open-source license is granted yet. `pnpm test:cli` verifies
+an offline isolated tarball installation and the actual `rgen` executable.
+
 Machine-readable output goes to stdout; interactive terminal summaries go to
 stderr. Help is styled only in a TTY, and `NO_COLOR=1` disables ANSI color.
 For pipelines use `pnpm --silent cli ...` to suppress pnpm's own script banner,
@@ -115,12 +157,12 @@ pnpm cli --input examples/input.json --generate --fields examples/fields.json \
 Without `--generate`, the CLI prints deduplicated key paths as segment arrays.
 `--scenario <id>` generates 10 objects by default without an input file;
 `--input` and `--scenario` are mutually exclusive. `--list-scenarios` lists all 30
-IDs, names, categories and descriptions as JSON and is used on its own.
+IDs, names, categories and descriptions as JSON; it accepts an optional `--locale`.
 `--count` / `-n` accepts 1–1000 and requires an object or nonempty array of objects.
 Without `--count`, source-file generation preserves the original root shape.
 `--seed`, `--field`, `--fields`, `--format` and `--count` require `--generate` or
 `--scenario`. Explicit mappings override matching preset mappings.
-The default seed is `random-api` and default export format is `json`.
+The default seed is `random-api`, locale is `en`, and export format is `json`.
 Seed remains an optional CLI setting for reproducible test fixtures: the same
 seed, structure, property order, count and mappings produce the same result.
 `--output` / `-o` creates a **new** file and refuses to overwrite anything.
@@ -177,7 +219,8 @@ need the REST service.
 The desktop smoke test exercises the real renderer with synthetic sentinel
 fixtures: field selection, valid generated formats, exact object counts, fresh
 values on repeated generation and
-actual JSON/CSV downloads. Its owned scratch exports are removed after the test;
+actual JSON/CSV/XML/JSONL downloads, recoverable XML preview errors and language
+switching without losing custom settings. Its owned scratch exports are removed after the test;
 failures report only static stage names, never source content.
 
 The renderer is sandboxed with context isolation, no Node integration or preload
