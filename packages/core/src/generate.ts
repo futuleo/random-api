@@ -19,31 +19,13 @@ export function generateSyntheticData(
   input: unknown,
   options: GenerationOptions,
 ): JsonValue {
-  if (typeof options?.seed !== "string" || options.seed.length === 0) {
-    throw new TypeError("A non-empty string seed is required.");
-  }
-  if (options.seed.length > 256) {
-    throw new RangeError("Seed must contain at most 256 characters.");
-  }
+  const random = createSeededRandom(options?.seed);
   const settings = parseFieldGenerators(options.fields ?? []);
   const locale = parseLocale(options.locale);
   const generators = new Map(
     settings.map((field) => [JSON.stringify(field.path), field]),
   );
   const matched = new Set<string>();
-
-  let state = 2166136261;
-  for (let index = 0; index < options.seed.length; index += 1) {
-    state = Math.imul(state ^ options.seed.charCodeAt(index), 16777619) >>> 0;
-  }
-
-  function random(): number {
-    // Mulberry32 keeps seeded output identical in browsers and Node.js.
-    state = (state + 0x6d2b79f5) >>> 0;
-    let value = Math.imul(state ^ (state >>> 15), state | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  }
 
   const ancestors = new WeakSet<object>();
   let nodes = 0;
@@ -125,3 +107,4 @@ import {
 } from "./fields.js";
 import type { KeyPath } from "./index.js";
 import { type Locale, parseLocale } from "./locale.js";
+import { createSeededRandom } from "./random.js";

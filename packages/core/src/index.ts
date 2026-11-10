@@ -1,4 +1,11 @@
 export {
+  DATASETS,
+  type DatasetOptions,
+  generateDataset,
+  getDataset,
+  type ShopDataset,
+} from "./datasets.js";
+export {
   EXPORT_FORMATS,
   EXPORT_MEDIA_TYPES,
   type ExportFormat,
