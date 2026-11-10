@@ -48,6 +48,16 @@ Use `--fields` for a JSON array of explicit settings:
 
 Paths are arrays of literal segments. Fields generate independently; there are no
 guarantees of relational integrity, chronological order or unique business IDs.
+
+For a fixed connected fixture instead, use `rgen datasets` and
+`rgen dataset shop --count 30 --locale fi --seed demo`. Count means 1–1000 orders
+(default 10); users and products are created automatically. The returned object
+contains `users`, `products` and `orders`, with valid references, integer EUR-cent
+totals, coherent lifecycle dates and reserved/available stock. Field overrides
+are rejected for datasets. This is a final synthetic snapshot without taxes,
+fees or discounts, not a general database seeder. IDs can repeat between runs.
+JSONL represents the whole dataset on one line; CSV uses one row of JSON-array
+cells, not separate collection tables.
 Seeded UUIDs are fixtures, not security identifiers.
 
 The input stays local. Keys and structure remain; synthetic data is not certified

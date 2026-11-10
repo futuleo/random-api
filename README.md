@@ -59,7 +59,8 @@ identifiers remain stable.
 ## Data studio
 
 The studio opens with the **Users** scenario. A persistent scenario selector
-inside **Source JSON** lists all 30 presets. **Browse 30 scenarios** opens a
+inside **Source JSON** lists all 30 independent presets plus the linked shop.
+**Browse 31 scenarios** opens a
 searchable gallery organized into People, Commerce, Finance, Work, Content and
 Systems. Select a scenario to load its template and editable field mappings, or
 paste your own JSON/import a local `.json` file (up to 2 MiB).
@@ -87,6 +88,34 @@ ratings and durations. Number fields have editable inclusive integer bounds;
 choice fields have an editable list (one nonempty value per line). These settings
 are never inferred from original values. Fields remain independent: presets do
 not guarantee chronological ordering, coherent totals or relationships.
+
+### Linked shop
+
+Choose **Linked shop** in the same picker, or use:
+
+```sh
+rgen datasets --locale ru
+rgen dataset shop --count 30 --locale ru --seed demo
+curl http://127.0.0.1:3000/datasets/shop \
+  -H 'Content-Type: application/json' \
+  --data '{"seed":"demo","count":30,"locale":"ru"}'
+```
+
+The result is one object containing `users`, `products` and `orders`. Count means
+orders (1–1000; CLI default 10). Users number one per three orders and products
+one per two, rounded up. References resolve; IDs and emails are unique within
+the result; integer EUR-cent totals match line quantities and product prices.
+Lifecycle dates match statuses. Pending/paid orders reserve stock, and
+`on_hand` equals `reserved` plus `available`. Five orders cover all five statuses.
+
+The studio shows a read-only recipe preview and hides field overrides for this
+dataset. Import JSON or select another preset to use custom fields. This is a
+synthetic final snapshot, not an inventory ledger, SQL importer or complete shop
+simulator: taxes, fees and discounts are not modeled. Fixture IDs can repeat
+between datasets. Generic generation from imported JSON does not retain links.
+JSON/XML preserve the object; JSONL contains one object line; CSV contains one row
+with the three collections as JSON cells. Full guides and generated examples
+are available at `/datasets/shop` and its five documentation-language routes.
 
 Large previews show only the first 20000 characters to keep the interface
 responsive; copy and downloads still contain the full generated output.

@@ -1,12 +1,15 @@
 import {
+  DATASETS,
   EXPORT_FORMATS,
   EXPORT_MEDIA_TYPES,
   type ExportFormat,
   type FieldGenerator,
   GENERATOR_KINDS,
   type GeneratorKind,
+  generateDataset,
   generateSimilarObjects,
   generateSyntheticData,
+  getDataset,
   getScenario,
   inspectLocalFields,
   isGeneratorKind,
@@ -29,6 +32,12 @@ import "./style.css";
 
 const DEFAULT_SCENARIO = getScenario("users");
 const EXAMPLE = JSON.stringify(DEFAULT_SCENARIO.template, null, 2);
+
+function getPreset(id: string, locale: Locale): Scenario {
+  return DATASETS.some((item) => item.id === id)
+    ? { ...getDataset(id, locale), fields: [] }
+    : getScenario(id, locale);
+}
 
 const LABELS: Record<GeneratorKind, MessageKey> = {
   auto: "Auto · preserve type",
@@ -135,7 +144,7 @@ function App() {
     document.documentElement.lang = locale;
   }, [locale]);
   const scenarios = useMemo(
-    () => SCENARIOS.map(({ id }) => getScenario(id, locale)),
+    () => [...SCENARIOS, ...DATASETS].map(({ id }) => getPreset(id, locale)),
     [locale],
   );
   const categories = [
@@ -193,6 +202,7 @@ function App() {
   }, [input]);
   const objectTemplate =
     analysis.error === null && isObjectTemplate(analysis.document);
+  const linkedDataset = DATASETS.some(({ id }) => id === selectedScenario);
   const filteredScenarios = scenarios.filter(
     (item) =>
       (category === "All" || item.category === category) &&
@@ -224,8 +234,8 @@ function App() {
   function changeLocale(next: Locale) {
     if (next === locale) return;
     if (selectedScenario !== null) {
-      const previous = getScenario(selectedScenario, locale);
-      const localized = getScenario(selectedScenario, next);
+      const previous = getPreset(selectedScenario, locale);
+      const localized = getPreset(selectedScenario, next);
       setInput(JSON.stringify(localized.template, null, 2));
       setSettings((current) =>
         current.map((setting) => {
@@ -309,20 +319,31 @@ function App() {
           return setting;
         }),
       };
-      const value = objectTemplate
-        ? generateSimilarObjects(analysis.document, {
-            ...options,
-            count: Number(count),
-          })
-        : generateSyntheticData(analysis.document, options);
+      const value =
+        linkedDataset && selectedScenario !== null
+          ? generateDataset(selectedScenario, {
+              seed: options.seed,
+              locale,
+              count: Number(count),
+            })
+          : objectTemplate
+            ? generateSimilarObjects(analysis.document, {
+                ...options,
+                count: Number(count),
+              })
+            : generateSyntheticData(analysis.document, options);
       serializeOutput(value, format);
       setResult({ value });
       setNotice(
-        objectTemplate
-          ? t("{count} objects generated. Entirely on your device.", {
+        linkedDataset
+          ? t("{count} linked orders generated. Entirely on your device.", {
               count: Number(count),
             })
-          : t("Fresh synthetic data. Entirely on your device."),
+          : objectTemplate
+            ? t("{count} objects generated. Entirely on your device.", {
+                count: Number(count),
+              })
+            : t("Fresh synthetic data. Entirely on your device."),
       );
     } catch (failure) {
       setError(
@@ -586,7 +607,7 @@ function App() {
                     <div className="panel-title">
                       <Icon name="grid" />
                       <h2>{t("Start with a scenario")}</h2>
-                      <span className="field-count">{SCENARIOS.length}</span>
+                      <span className="field-count">{scenarios.length}</span>
                     </div>
                     <button
                       type="button"
@@ -649,9 +670,11 @@ function App() {
                           {scenario.description}
                         </span>
                         <span className="scenario-field-count">
-                          {t("{count} fields · ready to generate", {
-                            count: scenario.fields.length,
-                          })}
+                          {DATASETS.some(({ id }) => id === scenario.id)
+                            ? t("Linked collections")
+                            : t("{count} fields · ready to generate", {
+                                count: scenario.fields.length,
+                              })}
                         </span>
                       </button>
                     ))}
@@ -675,7 +698,11 @@ function App() {
                     <div className="panel-heading">
                       <div className="panel-title">
                         <span className="step">01</span>
-                        <h2>{t("Source JSON")}</h2>
+                        <h2>
+                          {linkedDataset
+                            ? t("Dataset preview")
+                            : t("Source JSON")}
+                        </h2>
                         <span className="tag">{t("INPUT")}</span>
                       </div>
                       <div className="panel-tools">
@@ -720,7 +747,7 @@ function App() {
                           onChange={(event) => {
                             if (event.target.value)
                               loadScenario(
-                                getScenario(event.target.value, locale),
+                                getPreset(event.target.value, locale),
                               );
                           }}
                         >
@@ -756,10 +783,17 @@ function App() {
                       >
                         <Icon name="grid" />
                         {t("Browse {count} scenarios", {
-                          count: SCENARIOS.length,
+                          count: scenarios.length,
                         })}
                       </button>
                     </div>
+                    {linkedDataset && (
+                      <p className="field-intro">
+                        {t(
+                          "Fixed linked recipe. Field overrides are unavailable; import JSON or choose another preset to use custom fields.",
+                        )}
+                      </p>
+                    )}
                     <div className="code-editor">
                       <div className="line-numbers" aria-hidden="true">
                         {Array.from(
@@ -773,6 +807,7 @@ function App() {
                         id="source"
                         aria-label={t("Your JSON")}
                         value={input}
+                        readOnly={linkedDataset}
                         onChange={(event) => updateSource(event.target.value)}
                         onScroll={(event) => {
                           const numbers =
@@ -797,197 +832,203 @@ function App() {
                       </span>
                     </div>
                   </article>
-                  <section
-                    className="panel field-panel"
-                    aria-label={t("Field generators")}
-                  >
-                    <div className="panel-heading">
-                      <div className="panel-title">
-                        <span className="step">02</span>
-                        <h2>{t("Field generators")}</h2>
-                        <span className="field-count">
-                          {analysis.fields.length}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="text-button"
-                        disabled={
-                          analysis.fields.length === 0 ||
-                          analysis.fields.length > 200
-                        }
-                        onClick={() => {
-                          setSettings(
-                            analysis.fields.flatMap(({ path }) => {
-                              const generator = suggestGenerator(path);
-                              return generator === "auto"
-                                ? []
-                                : [{ path, generator }];
-                            }),
-                          );
-                          setFieldDrafts({});
-                          invalidate();
-                        }}
-                      >
-                        <Icon name="spark" />
-                        {t("Suggest from keys")}
-                      </button>
-                    </div>
-                    <div className="field-intro">
-                      {t("Pick a generator for each field.")}
-                      <span>{t("Suggestions use names, never values.")}</span>
-                    </div>
-                    {analysis.fields.length === 0 ? (
-                      <p className="field-empty">
-                        {t(
-                          "Add valid JSON with primitive fields to configure generators.",
-                        )}
-                      </p>
-                    ) : analysis.fields.length > 200 ? (
-                      <p className="field-empty">
-                        {t(
-                          "More than 200 fields: auto generation remains available; custom mappings are limited to 200.",
-                        )}
-                      </p>
-                    ) : (
-                      <div className="fields-table">
-                        <div className="field-table-heading">
-                          <span>{t("FIELD PATH")}</span>
-                          <span>{t("LOCAL TYPE")}</span>
-                          <span>{t("GENERATOR")}</span>
+                  {!linkedDataset && (
+                    <section
+                      className="panel field-panel"
+                      aria-label={t("Field generators")}
+                    >
+                      <div className="panel-heading">
+                        <div className="panel-title">
+                          <span className="step">02</span>
+                          <h2>{t("Field generators")}</h2>
+                          <span className="field-count">
+                            {analysis.fields.length}
+                          </span>
                         </div>
-                        {analysis.fields.map(({ path, types }) => {
-                          const setting = settings.find(
-                            (item) =>
-                              JSON.stringify(item.path) ===
-                              JSON.stringify(path),
-                          );
-                          const draft = fieldDrafts[JSON.stringify(path)];
-                          return (
-                            <div
-                              className="field-row"
-                              key={JSON.stringify(path)}
-                            >
-                              <code title={JSON.stringify(path)}>
-                                <span className="field-symbol">#</span>
-                                {path.length === 0
-                                  ? t("(root value)")
-                                  : JSON.stringify(path)}
-                              </code>
-                              <span className="type-badge">
-                                {types.join(" / ")}
-                              </span>
-                              <label className="generator-select">
-                                <span className="visually-hidden">
-                                  {t("Generator for {path}", {
-                                    path: JSON.stringify(path),
-                                  })}
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={
+                            analysis.fields.length === 0 ||
+                            analysis.fields.length > 200
+                          }
+                          onClick={() => {
+                            setSettings(
+                              analysis.fields.flatMap(({ path }) => {
+                                const generator = suggestGenerator(path);
+                                return generator === "auto"
+                                  ? []
+                                  : [{ path, generator }];
+                              }),
+                            );
+                            setFieldDrafts({});
+                            invalidate();
+                          }}
+                        >
+                          <Icon name="spark" />
+                          {t("Suggest from keys")}
+                        </button>
+                      </div>
+                      <div className="field-intro">
+                        {t("Pick a generator for each field.")}
+                        <span>{t("Suggestions use names, never values.")}</span>
+                      </div>
+                      {analysis.fields.length === 0 ? (
+                        <p className="field-empty">
+                          {t(
+                            "Add valid JSON with primitive fields to configure generators.",
+                          )}
+                        </p>
+                      ) : analysis.fields.length > 200 ? (
+                        <p className="field-empty">
+                          {t(
+                            "More than 200 fields: auto generation remains available; custom mappings are limited to 200.",
+                          )}
+                        </p>
+                      ) : (
+                        <div className="fields-table">
+                          <div className="field-table-heading">
+                            <span>{t("FIELD PATH")}</span>
+                            <span>{t("LOCAL TYPE")}</span>
+                            <span>{t("GENERATOR")}</span>
+                          </div>
+                          {analysis.fields.map(({ path, types }) => {
+                            const setting = settings.find(
+                              (item) =>
+                                JSON.stringify(item.path) ===
+                                JSON.stringify(path),
+                            );
+                            const draft = fieldDrafts[JSON.stringify(path)];
+                            return (
+                              <div
+                                className="field-row"
+                                key={JSON.stringify(path)}
+                              >
+                                <code title={JSON.stringify(path)}>
+                                  <span className="field-symbol">#</span>
+                                  {path.length === 0
+                                    ? t("(root value)")
+                                    : JSON.stringify(path)}
+                                </code>
+                                <span className="type-badge">
+                                  {types.join(" / ")}
                                 </span>
-                                <select
-                                  value={
-                                    settings.find(
-                                      (setting) =>
-                                        JSON.stringify(setting.path) ===
-                                        JSON.stringify(path),
-                                    )?.generator ?? "auto"
-                                  }
-                                  onChange={(event) => {
-                                    if (isGeneratorKind(event.target.value))
-                                      choose(path, event.target.value);
-                                  }}
-                                >
-                                  {GENERATOR_KINDS.map((kind) => (
-                                    <option key={kind} value={kind}>
-                                      {t(LABELS[kind])}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              {setting?.generator === "number" && (
-                                <div className="field-options number-options">
-                                  <label>
-                                    <span>{t("MINIMUM")}</span>
-                                    <input
-                                      inputMode="numeric"
-                                      aria-label={t("Minimum for {path}", {
-                                        path: JSON.stringify(path),
-                                      })}
-                                      value={
-                                        draft?.min ?? String(setting.min ?? 0)
-                                      }
-                                      onChange={(event) =>
-                                        updateFieldDraft(
-                                          path,
-                                          "min",
-                                          event.target.value,
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <span
-                                    className="range-separator"
-                                    aria-hidden="true"
-                                  >
-                                    {t("to")}
-                                  </span>
-                                  <label>
-                                    <span>{t("MAXIMUM")}</span>
-                                    <input
-                                      inputMode="numeric"
-                                      aria-label={t("Maximum for {path}", {
-                                        path: JSON.stringify(path),
-                                      })}
-                                      value={
-                                        draft?.max ??
-                                        String(setting.max ?? 999_999)
-                                      }
-                                      onChange={(event) =>
-                                        updateFieldDraft(
-                                          path,
-                                          "max",
-                                          event.target.value,
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <span className="option-hint">
-                                    {t("Inclusive integer range")}
-                                  </span>
-                                </div>
-                              )}
-                              {setting?.generator === "enum" && (
-                                <label className="field-options enum-options">
-                                  <span>{t("ALLOWED VALUES")}</span>
-                                  <textarea
-                                    aria-label={t("Allowed values for {path}", {
+                                <label className="generator-select">
+                                  <span className="visually-hidden">
+                                    {t("Generator for {path}", {
                                       path: JSON.stringify(path),
                                     })}
-                                    value={
-                                      draft?.values ?? setting.values.join("\n")
-                                    }
-                                    rows={3}
-                                    onChange={(event) =>
-                                      updateFieldDraft(
-                                        path,
-                                        "values",
-                                        event.target.value,
-                                      )
-                                    }
-                                    spellCheck={false}
-                                  />
-                                  <span className="option-hint">
-                                    {t(
-                                      "One value per line · 1–50 unique choices · never inferred from your source",
-                                    )}
                                   </span>
+                                  <select
+                                    value={
+                                      settings.find(
+                                        (setting) =>
+                                          JSON.stringify(setting.path) ===
+                                          JSON.stringify(path),
+                                      )?.generator ?? "auto"
+                                    }
+                                    onChange={(event) => {
+                                      if (isGeneratorKind(event.target.value))
+                                        choose(path, event.target.value);
+                                    }}
+                                  >
+                                    {GENERATOR_KINDS.map((kind) => (
+                                      <option key={kind} value={kind}>
+                                        {t(LABELS[kind])}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </label>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </section>
+                                {setting?.generator === "number" && (
+                                  <div className="field-options number-options">
+                                    <label>
+                                      <span>{t("MINIMUM")}</span>
+                                      <input
+                                        inputMode="numeric"
+                                        aria-label={t("Minimum for {path}", {
+                                          path: JSON.stringify(path),
+                                        })}
+                                        value={
+                                          draft?.min ?? String(setting.min ?? 0)
+                                        }
+                                        onChange={(event) =>
+                                          updateFieldDraft(
+                                            path,
+                                            "min",
+                                            event.target.value,
+                                          )
+                                        }
+                                      />
+                                    </label>
+                                    <span
+                                      className="range-separator"
+                                      aria-hidden="true"
+                                    >
+                                      {t("to")}
+                                    </span>
+                                    <label>
+                                      <span>{t("MAXIMUM")}</span>
+                                      <input
+                                        inputMode="numeric"
+                                        aria-label={t("Maximum for {path}", {
+                                          path: JSON.stringify(path),
+                                        })}
+                                        value={
+                                          draft?.max ??
+                                          String(setting.max ?? 999_999)
+                                        }
+                                        onChange={(event) =>
+                                          updateFieldDraft(
+                                            path,
+                                            "max",
+                                            event.target.value,
+                                          )
+                                        }
+                                      />
+                                    </label>
+                                    <span className="option-hint">
+                                      {t("Inclusive integer range")}
+                                    </span>
+                                  </div>
+                                )}
+                                {setting?.generator === "enum" && (
+                                  <label className="field-options enum-options">
+                                    <span>{t("ALLOWED VALUES")}</span>
+                                    <textarea
+                                      aria-label={t(
+                                        "Allowed values for {path}",
+                                        {
+                                          path: JSON.stringify(path),
+                                        },
+                                      )}
+                                      value={
+                                        draft?.values ??
+                                        setting.values.join("\n")
+                                      }
+                                      rows={3}
+                                      onChange={(event) =>
+                                        updateFieldDraft(
+                                          path,
+                                          "values",
+                                          event.target.value,
+                                        )
+                                      }
+                                      spellCheck={false}
+                                    />
+                                    <span className="option-hint">
+                                      {t(
+                                        "One value per line · 1–50 unique choices · never inferred from your source",
+                                      )}
+                                    </span>
+                                  </label>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
+                  )}
                 </div>
                 <div className="output-column">
                   <article className="panel editor-panel output-panel">
@@ -996,10 +1037,16 @@ function App() {
                       aria-label={t("Generation settings")}
                     >
                       <label className="count-control" htmlFor="object-count">
-                        <span>{t("OBJECTS")}</span>
+                        <span>
+                          {linkedDataset ? t("ORDERS") : t("OBJECTS")}
+                        </span>
                         <input
                           id="object-count"
-                          aria-label={t("Number of objects")}
+                          aria-label={
+                            linkedDataset
+                              ? t("Number of orders")
+                              : t("Number of objects")
+                          }
                           type="number"
                           min={1}
                           max={1000}
@@ -1027,13 +1074,17 @@ function App() {
                       </button>
                     </section>
                     <p id="object-count-note" className="count-note">
-                      {objectTemplate
+                      {linkedDataset
                         ? t(
-                            "1–1000 objects. Each run is fresh; nested arrays keep their shape.",
+                            "1–1000 orders. Users and products are created automatically.",
                           )
-                        : t(
-                            "Object count requires an object template. Other JSON keeps its shape.",
-                          )}
+                        : objectTemplate
+                          ? t(
+                              "1–1000 objects. Each run is fresh; nested arrays keep their shape.",
+                            )
+                          : t(
+                              "Object count requires an object template. Other JSON keeps its shape.",
+                            )}
                     </p>
                     <div className="panel-heading">
                       <div className="panel-title">

@@ -125,14 +125,14 @@ export async function verifyGenerationAndExports(
   await run(`(async () => {
     ${helpers}
     const picker = document.querySelector("#scenario");
-    if (!picker || picker.querySelectorAll("optgroup option").length !== 30) {
+    if (!picker || picker.querySelectorAll("optgroup option").length !== 31) {
       throw new Error("Missing scenario choices.");
     }
     picker.value = "orders";
     picker.dispatchEvent(new Event("change", { bubbles: true }));
     await waitFor(() => document.querySelector("#source").value.includes("total_cents"));
-    clickButton("Browse 30 scenarios");
-    await waitFor(() => document.querySelectorAll(".scenario-card").length === 30);
+    clickButton("Browse 31 scenarios");
+    await waitFor(() => document.querySelectorAll(".scenario-card").length === 31);
     setInput('[aria-label="Search scenarios"]', "Support tickets", HTMLInputElement.prototype);
     await waitFor(() => document.querySelectorAll(".scenario-card").length === 1);
     document.querySelector(".scenario-card").click();
@@ -144,6 +144,29 @@ export async function verifyGenerationAndExports(
         !(flow[index].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING))) {
       throw new Error("Studio controls are out of sequence.");
     }
+  })()`);
+  await run(`(async () => {
+    ${helpers}
+    const picker = document.querySelector("#scenario");
+    picker.value = "shop";
+    picker.dispatchEvent(new Event("change", { bubbles: true }));
+    await waitFor(() => document.querySelector("#source").readOnly && !document.querySelector(".field-panel"));
+    if (document.querySelector("#object-count").getAttribute("aria-label") !== "Number of orders")
+      throw new Error("Missing linked dataset count semantics.");
+    setInput("#object-count", "3", HTMLInputElement.prototype);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    clickButton("Generate data");
+    await waitFor(() => document.querySelector(".output-code"));
+    const shop = JSON.parse(document.querySelector(".output-code").textContent);
+    if (shop.orders.length !== 3 || !shop.orders.every((order) =>
+        shop.users.some((user) => user.id === order.user_id) &&
+        order.total_cents === order.items.reduce((sum, item) => sum + item.total_cents, 0) &&
+        order.items.every((item) => shop.products.some((product) => product.id === item.product_id)))) {
+      throw new Error("Linked shop generation failed.");
+    }
+    picker.value = "users";
+    picker.dispatchEvent(new Event("change", { bubbles: true }));
+    await waitFor(() => !document.querySelector("#source").readOnly && document.querySelector(".field-panel"));
   })()`);
   const entry: unknown = await run(`(async () => {
     ${helpers}

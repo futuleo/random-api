@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getDataset } from "@random-api/core";
 import { defineConfig } from "vitepress";
 import generatedPages from "../[page].paths";
 import { locales, navigation, prefix } from "./content/shared";
@@ -63,6 +64,10 @@ export default defineConfig({
                 text: nav.reference,
                 items: [
                   { text: nav.scenarios, link: `${base}/scenarios` },
+                  {
+                    text: getDataset("shop", locale).name,
+                    link: `${base}/datasets/shop`,
+                  },
                   { text: nav.rest, link: `${base}/rest` },
                   { text: nav.architecture, link: `${base}/architecture` },
                 ],

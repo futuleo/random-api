@@ -1,6 +1,44 @@
 import type { Locale } from "@random-api/core";
 
 export const MESSAGES = {
+  "Linked collections": [
+    "Yhdistetyt kokoelmat",
+    "Sammanhängande samlingar",
+    "Связанные коллекции",
+    "Colecciones relacionadas",
+  ],
+  "Dataset preview": [
+    "Tietojoukon esikatselu",
+    "Förhandsvisning av datamängd",
+    "Предпросмотр набора",
+    "Vista previa del conjunto",
+  ],
+  ORDERS: ["TILAUKSET", "BESTÄLLNINGAR", "ЗАКАЗЫ", "PEDIDOS"],
+  "Number of orders": [
+    "Tilausten määrä",
+    "Antal beställningar",
+    "Количество заказов",
+    "Número de pedidos",
+  ],
+  "1–1000 orders. Users and products are created automatically.": [
+    "1–1000 tilausta. Käyttäjät ja tuotteet luodaan automaattisesti.",
+    "1–1000 beställningar. Användare och produkter skapas automatiskt.",
+    "1–1000 заказов. Пользователи и товары создаются автоматически.",
+    "1–1000 pedidos. Los usuarios y productos se crean automáticamente.",
+  ],
+  "{count} linked orders generated. Entirely on your device.": [
+    "{count} yhdistettyä tilausta luotu. Kaikki omalla laitteellasi.",
+    "{count} sammanhängande beställningar skapade. Allt på din enhet.",
+    "Создано связанных заказов: {count}. Всё на вашем устройстве.",
+    "{count} pedidos relacionados generados. Todo en tu dispositivo.",
+  ],
+  "Fixed linked recipe. Field overrides are unavailable; import JSON or choose another preset to use custom fields.":
+    [
+      "Kiinteä yhdistetty malli. Kenttiä ei voi muuttaa; tuo JSON tai valitse toinen esiasetus kenttien muokkaamiseksi.",
+      "Fast sammanhängande mall. Fält kan inte ändras; importera JSON eller välj en annan förinställning för egna fält.",
+      "Фиксированная связанная модель. Поля не переопределяются; импортируйте JSON или выберите другой пресет для своих полей.",
+      "Modelo relacionado fijo. Los campos no se pueden modificar; importa JSON o elige otro ajuste para personalizarlos.",
+    ],
   "Random API home": [
     "Random API - etusivu",
     "Random API - startsida",

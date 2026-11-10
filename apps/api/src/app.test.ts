@@ -1,3 +1,4 @@
+import { generateDataset } from "@random-api/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "./app.ts";
 
@@ -22,6 +23,57 @@ describe("API scaffold", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok" });
+  });
+
+  it("generates linked shop data from explicit bounded settings only", async () => {
+    const app = createApp();
+    const payload = { seed: "api-shop", count: 7, locale: "fi" as const };
+    const result = await app.inject({
+      method: "POST",
+      url: "/datasets/shop",
+      payload,
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toEqual(generateDataset("shop", payload));
+    expect(result.headers["cache-control"]).toBe("no-store");
+    for (const format of ["csv", "xml", "jsonl"]) {
+      const formatted = await app.inject({
+        method: "POST",
+        url: "/datasets/shop",
+        payload: { ...payload, format },
+      });
+      expect(formatted.statusCode).toBe(200);
+      expect(formatted.body.length).toBeGreaterThan(0);
+    }
+    for (const invalid of [
+      { ...payload, source: { value: "SENTINEL_SOURCE" } },
+      { ...payload, fields: [{ path: ["SENTINEL"], generator: "uuid" }] },
+      { ...payload, count: 1001 },
+      { ...payload, count: 0 },
+      { ...payload, locale: "SENTINEL_LOCALE" },
+    ]) {
+      const rejected = await app.inject({
+        method: "POST",
+        url: "/datasets/shop",
+        payload: invalid,
+      });
+      expect(rejected.statusCode).toBe(400);
+      expect(rejected.body).not.toContain("SENTINEL");
+    }
+    const unknown = await app.inject({
+      method: "POST",
+      url: "/datasets/SENTINEL_ID",
+      payload,
+    });
+    expect(unknown.statusCode).toBe(400);
+    expect(unknown.body).not.toContain("SENTINEL");
+    const browser = await app.inject({
+      method: "POST",
+      url: "/datasets/shop",
+      headers: { origin: "http://example.test" },
+      payload,
+    });
+    expect(browser.statusCode).toBe(403);
   });
 
   it("does not reflect unknown URLs or input values", async () => {

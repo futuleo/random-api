@@ -2,10 +2,13 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import {
+  DATASETS,
   EXPORT_FORMATS,
   extractKeyPaths,
+  generateDataset,
   generateSimilarObjects,
   generateSyntheticData,
+  getDataset,
   getScenario,
   parseFieldGenerators,
   parseLocale,
@@ -31,8 +34,10 @@ async function main(): Promise<void> {
         seed: { type: "string" },
         count: { type: "string", short: "n" },
         scenario: { type: "string" },
+        dataset: { type: "string" },
         locale: { type: "string" },
         "list-scenarios": { type: "boolean" },
+        "list-datasets": { type: "boolean" },
         field: { type: "string", multiple: true },
         fields: { type: "string" },
         format: { type: "string" },
@@ -52,15 +57,25 @@ async function main(): Promise<void> {
       if (options.values.scenario !== undefined)
         throw new Error("Specify a scenario only once.");
       options.values.scenario = positionals[0];
+    } else if (command === "dataset" && positionals.length === 1) {
+      if (options.values.dataset !== undefined)
+        throw new Error("Specify a dataset only once.");
+      options.values.dataset = positionals[0];
     } else if (positionals.length !== 0) {
       throw new Error("Invalid command. Use --help for usage.");
     } else if (command === "generate") {
       options.values.generate = true;
     } else if (command === "inspect") {
-      if (options.values.generate || options.values.scenario !== undefined)
+      if (
+        options.values.generate ||
+        options.values.scenario !== undefined ||
+        options.values.dataset !== undefined
+      )
         throw new Error("Inspection cannot be combined with generation.");
     } else if (command === "scenarios") {
       options.values["list-scenarios"] = true;
+    } else if (command === "datasets") {
+      options.values["list-datasets"] = true;
     } else if (command === "help") {
       options.values.help = true;
     } else if (command === "version") {
@@ -86,6 +101,8 @@ async function main(): Promise<void> {
         "COMMANDS",
         "  scenario <id>           Generate a built-in scenario",
         "  scenarios               List all scenarios as JSON",
+        "  dataset <id>            Generate a connected dataset (shop)",
+        "  datasets                List connected datasets as JSON",
         "  generate -i <file>       Generate from a local JSON template",
         "  inspect -i <file>        Inspect key paths without generating",
         "  help / version          Show usage / installed version",
@@ -95,6 +112,7 @@ async function main(): Promise<void> {
         "      --generate           Generate synthetic values locally",
         "  -n, --count <1-1000>     Number of objects (object templates only)",
         "      --scenario <id>      Generate a preset (10 objects by default)",
+        "      --dataset <id>       Connected dataset; count means orders for shop",
         "      --list-scenarios     List all 30 built-in scenarios as JSON",
         "      --locale <language>  en, fi, sv, ru or es (default: en)",
         '      --seed <text>        Reproducible seed (default: "random-api")',
@@ -113,6 +131,7 @@ async function main(): Promise<void> {
         "  rgen generate -i users.json --field '[\"email\"]=email'",
         "  rgen scenario users --count 100 --locale fi --format csv",
         "  rgen scenario products --format xml -o products.xml",
+        "  rgen dataset shop --count 30 --locale ru --seed demo",
         "  rgen scenarios --locale es",
         "",
         "PRIVACY",
@@ -126,18 +145,22 @@ async function main(): Promise<void> {
   }
 
   const locale = parseLocale(options.values.locale);
-  if (options.values["list-scenarios"]) {
+  if (options.values["list-scenarios"] || options.values["list-datasets"]) {
+    const listingDatasets = options.values["list-datasets"] === true;
+    const listingKey = listingDatasets ? "list-datasets" : "list-scenarios";
     if (
       Object.keys(options.values).some(
-        (key) => key !== "list-scenarios" && key !== "locale",
+        (key) => key !== listingKey && key !== "locale",
       )
     ) {
-      throw new Error("Scenario listing accepts only --locale.");
+      throw new Error("Catalog listing accepts only --locale.");
     }
     process.stdout.write(
       `${JSON.stringify(
-        SCENARIOS.map(({ id }) => {
-          const { name, category, description } = getScenario(id, locale);
+        (listingDatasets ? DATASETS : SCENARIOS).map(({ id }) => {
+          const { name, category, description } = listingDatasets
+            ? getDataset(id, locale)
+            : getScenario(id, locale);
           return { id, name, category, description };
         }),
         null,
@@ -147,18 +170,30 @@ async function main(): Promise<void> {
     return;
   }
   if (
-    options.values.input !== undefined &&
-    options.values.scenario !== undefined
+    [
+      options.values.input,
+      options.values.scenario,
+      options.values.dataset,
+    ].filter((value) => value !== undefined).length > 1
   ) {
-    throw new Error("Choose either --input or --scenario, not both.");
+    throw new Error("Choose one of --input, --scenario or --dataset.");
   }
   const scenario =
     typeof options.values.scenario === "string"
       ? getScenario(options.values.scenario, locale)
       : undefined;
-  const generating = options.values.generate === true || scenario !== undefined;
-  if (typeof options.values.input !== "string" && !scenario) {
-    throw new Error("Use --input <file.json> or --scenario <id>.");
+  const dataset =
+    typeof options.values.dataset === "string"
+      ? getDataset(options.values.dataset, locale)
+      : undefined;
+  const generating =
+    options.values.generate === true ||
+    scenario !== undefined ||
+    dataset !== undefined;
+  if (typeof options.values.input !== "string" && !scenario && !dataset) {
+    throw new Error(
+      "Use --input <file.json>, --scenario <id> or --dataset <id>.",
+    );
   }
   if (
     !generating &&
@@ -170,7 +205,7 @@ async function main(): Promise<void> {
       "--seed, --field, --fields, --format, --count and --locale require generation.",
     );
   }
-  let count: number | undefined = scenario ? 10 : undefined;
+  let count: number | undefined = scenario || dataset ? 10 : undefined;
   if (options.values.count !== undefined) {
     if (
       typeof options.values.count !== "string" ||
@@ -188,6 +223,11 @@ async function main(): Promise<void> {
   }
 
   const rawFields: unknown[] = [];
+  if (
+    dataset &&
+    (options.values.fields !== undefined || options.values.field !== undefined)
+  )
+    throw new Error("Linked datasets do not accept field overrides.");
   if (typeof options.values.fields === "string") {
     let parsed: unknown;
     try {
@@ -227,7 +267,7 @@ async function main(): Promise<void> {
   ];
 
   let document: unknown = scenario?.template;
-  if (!scenario) {
+  if (!scenario && !dataset) {
     if (typeof options.values.input !== "string")
       throw new Error("A JSON file is required.");
     let text: string;
@@ -251,11 +291,17 @@ async function main(): Promise<void> {
         ? options.values.seed
         : "random-api",
   };
-  const result = generating
-    ? count === undefined
-      ? generateSyntheticData(document, generationOptions)
-      : generateSimilarObjects(document, { ...generationOptions, count })
-    : extractKeyPaths(document).map((path) => [...path]);
+  const result = dataset
+    ? generateDataset(dataset.id, {
+        seed: generationOptions.seed,
+        locale,
+        count: count ?? 10,
+      })
+    : generating
+      ? count === undefined
+        ? generateSyntheticData(document, generationOptions)
+        : generateSimilarObjects(document, { ...generationOptions, count })
+      : extractKeyPaths(document).map((path) => [...path]);
   const output = serializeOutput(result, exportFormat);
   if (typeof options.values.output === "string") {
     try {

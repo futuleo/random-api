@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateSyntheticData } from "@random-api/core";
+import { generateDataset, generateSyntheticData } from "@random-api/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const source = { name: "SENTINEL_PERSON", count: 987654321, active: true };
@@ -37,6 +37,46 @@ function run(...args: string[]) {
 }
 
 describe("CLI", () => {
+  it("generates linked shop data identically to core and rejects conflicting options", () => {
+    for (const locale of ["en", "fi", "sv", "ru", "es"] as const) {
+      expect(JSON.parse(run("datasets", "--locale", locale).stdout)[0].id).toBe(
+        "shop",
+      );
+      const result = run(
+        "dataset",
+        "shop",
+        "--count",
+        "7",
+        "--locale",
+        locale,
+        "--seed",
+        "cli-shop",
+      );
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual(
+        generateDataset("shop", { count: 7, locale, seed: "cli-shop" }),
+      );
+    }
+    expect(JSON.parse(run("dataset", "shop").stdout).orders).toHaveLength(10);
+    for (const format of ["csv", "xml", "jsonl"])
+      expect(run("dataset", "shop", "--format", format).status).toBe(0);
+    for (const args of [
+      ["dataset", "SENTINEL_DATASET"],
+      ["dataset", "shop", "--input", input],
+      ["dataset", "shop", "--scenario", "users"],
+      ["dataset", "shop", "--field", '["id"]=uuid'],
+      ["dataset", "shop", "--fields", input],
+      ["dataset", "shop", "--count", "1001"],
+      ["datasets", "--count", "3"],
+      ["inspect", "--dataset", "shop"],
+      ["dataset", "shop", "--dataset", "shop"],
+    ]) {
+      const result = run(...args);
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).not.toContain("SENTINEL");
+    }
+  });
   it("preserves default key inspection", () => {
     const result = run("--input", input);
     expect(result.status).toBe(0);

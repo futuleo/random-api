@@ -1,9 +1,11 @@
 import {
+  DATASETS,
   EXPORT_FORMATS,
   EXPORT_MEDIA_TYPES,
   type ExportFormat,
   type FieldGenerator,
   GENERATOR_KINDS,
+  generateDataset,
   generateRecords,
   LOCALES,
   type Locale,
@@ -155,6 +157,51 @@ export function buildApp() {
         throw error;
       }
       return reply.type(EXPORT_MEDIA_TYPES[request.body.format]).send(output);
+    },
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: { seed: string; count: number; locale: Locale; format: ExportFormat };
+  }>("/datasets/:id", {
+    schema: {
+      params: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id"],
+        properties: {
+          id: { type: "string", enum: DATASETS.map(({ id }) => id) },
+        },
+      },
+      body: {
+        type: "object",
+        additionalProperties: false,
+        required: ["seed", "count"],
+        properties: {
+          seed: { type: "string", minLength: 1, maxLength: 256 },
+          count: { type: "integer", minimum: 1, maximum: 1000 },
+          locale: { type: "string", enum: LOCALES, default: "en" },
+          format: { type: "string", enum: EXPORT_FORMATS, default: "json" },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      try {
+        const result = generateDataset(request.params.id, {
+          seed: request.body.seed,
+          count: request.body.count,
+          locale: request.body.locale,
+        });
+        return reply
+          .type(EXPORT_MEDIA_TYPES[request.body.format])
+          .send(serializeOutput(result, request.body.format));
+      } catch (error) {
+        if (error instanceof TypeError || error instanceof RangeError)
+          return reply
+            .code(400)
+            .send({ error: "Invalid generation settings." });
+        throw error;
+      }
     },
   });
 

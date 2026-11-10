@@ -112,6 +112,25 @@ try {
     assert.equal(duplicate.status, 1);
   }
   stage = "local input privacy";
+  const shop = JSON.parse(
+    run(command, [
+      "dataset",
+      "shop",
+      "--count",
+      "7",
+      "--seed",
+      "packed-shop",
+      "--locale",
+      "fi",
+    ]),
+  );
+  assert.equal(shop.orders.length, 7);
+  assert.ok(
+    shop.orders.every((order: { user_id: string }) =>
+      shop.users.some((user: { id: string }) => user.id === order.user_id),
+    ),
+  );
+  assert.equal(JSON.parse(run(command, ["datasets"])).length, 1);
   const input = join(directory, "input.json");
   await writeFile(
     input,
