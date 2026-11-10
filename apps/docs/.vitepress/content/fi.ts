@@ -82,6 +82,8 @@ Avainnimet ja rakenne säilyvät. Avaimissa olevia arkaluonteisia tietoja ei tun
 
 Molemmat käyttävät samaa paikallista generointimoottoria. REST-palvelua ei tarvita eikä alkuperäisiä JSON-arvoja lähetetä verkkoon.
 
+Valitse **Kieli**, kun haluat vaihtaa käyttöliittymän, ilmoitusten, skenaarioiden ja tuettujen arvojen kielen. Vaihtoehdot ovat englanti, suomi, ruotsi, venäjä ja espanja. Omat JSON-avaimet ja kenttäasetukset säilyvät. Aiempi tulos tyhjennetään kieltä vaihdettaessa.
+
 ## Selainkäyttö
 
 Käynnistä \`pnpm dev\`. Liitä kelvollinen JSON tai valitse tiedosto. Valitse esiasetus tai muokkaa löydettyjen kenttien asetuksia.

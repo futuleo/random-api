@@ -351,7 +351,7 @@ export async function verifyGenerationAndExports(
         Array.from(document.querySelectorAll(".field-row")).find((row) =>
           row.querySelector("code").textContent.includes('"sku"')).querySelector("select").value !== "email")
       throw new Error("Language switch discarded custom field settings.");
-    clickButton("Generate data");
+    document.querySelector(".primary-button").click();
     await waitFor(() => document.querySelector(".output-code"));
     const rows = JSON.parse(document.querySelector(".output-code").textContent);
     if (!rows.every((row) => row.title === "CUSTOM_OPTION" && row.sku.endsWith("@example.test")))
@@ -359,15 +359,19 @@ export async function verifyGenerationAndExports(
     const source = '{"name":"DESKTOP_SMOKE_SENTINEL","label":"DESKTOP_SMOKE_SENTINEL_TEXT"}';
     setInput("#source", source, HTMLTextAreaElement.prototype);
     await waitFor(() => document.querySelectorAll(".field-row select").length === 2);
-    clickButton("Suggest from keys");
+    document.querySelector(".field-panel .text-button").click();
     await new Promise((resolve) => setTimeout(resolve, 50));
     for (const locale of ["en", "fi", "sv", "ru", "es"]) {
       select("#data-language", locale);
       await new Promise((resolve) => setTimeout(resolve, 50));
+      const generateLabels = { en: "Generate data", fi: "Luo data", sv: "Generera data", ru: "Создать данные", es: "Generar datos" };
+      if (document.documentElement.lang !== locale ||
+          !document.querySelector(".primary-button").textContent.includes(generateLabels[locale]))
+        throw new Error("Studio interface did not switch language.");
       if (document.querySelector("#source").value !== source ||
           document.querySelector(".field-row select").value !== "name")
         throw new Error("Language switch discarded custom source.");
-      clickButton("Generate data");
+      document.querySelector(".primary-button").click();
       await waitFor(() => document.querySelector(".output-code"));
       if (document.querySelector(".output-code").textContent.includes("DESKTOP_SMOKE_SENTINEL"))
         throw new Error("Localized generation copied source values.");

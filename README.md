@@ -47,12 +47,14 @@ settings, deterministic generated examples and copyable `rgen` commands.
 
 ## Data languages
 
-Use **Data language** in web/Electron, `--locale en|fi|sv|ru|es` in `rgen`, or
+Use **Language** in web/Electron, `--locale en|fi|sv|ru|es` in `rgen`, or
 `locale` in core/REST options. Names, synthetic text, scenario labels and
 human-readable preset choices use that dictionary. Keys, paths, machine codes
 and caller-provided enum choices stay literal. Changing data language preserves
 custom source, generator overrides and choice drafts, and clears stale output.
-The studio's interface captions currently remain English.
+The studio's controls, accessibility labels, guide, notices and validation
+messages use the selected language too. JSON keys, format and generator
+identifiers remain stable.
 
 ## Data studio
 

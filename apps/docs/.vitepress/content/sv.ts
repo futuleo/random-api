@@ -83,6 +83,8 @@ Nycklar och struktur bevaras. Känsligt innehåll i nyckelnamn identifieras inte
 
 Båda använder samma lokala genereringsmotor. Ingen REST-tjänst behövs och ursprungliga JSON-värden laddas inte upp.
 
+Välj **Språk** för att byta språk för gränssnittet, meddelanden, scenarier och stödda genererade värden. Engelska, finska, svenska, ryska och spanska finns. Egna JSON-nycklar och fältinställningar bevaras. Det tidigare resultatet rensas när språket ändras.
+
 ## Webbläsarflöde
 
 Starta \`pnpm dev\`, klistra in giltig JSON eller välj en fil. Välj en förinställning eller konfigurera de hittade fälten.

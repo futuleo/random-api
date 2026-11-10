@@ -66,6 +66,8 @@ Se conservan los nombres de claves y la estructura. Los campos se generan indepe
 
 La aplicación procesa el documento en el dispositivo y no necesita REST.
 
+Usa **Idioma** para cambiar la interfaz, los avisos, los escenarios y los valores compatibles entre inglés, finés, sueco, ruso y español. Las claves JSON y los ajustes personalizados se conservan. Cambiar de idioma borra el resultado anterior para no confundirlo con una nueva generación.
+
 ## Flujo de trabajo
 
 Ejecuta \`pnpm dev\`, pega JSON o importa un archivo. El selector de escenarios permanece visible encima del documento; la biblioteca permite buscar y filtrar los 30 escenarios.

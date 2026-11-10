@@ -79,6 +79,8 @@ Continue with [web and desktop](/web-desktop), the [CLI reference](/cli), or the
 
 Both interfaces use the same local generation engine. No REST server is required, and original JSON values are not uploaded.
 
+Use **Language** to switch interface captions, notices, scenario labels and supported generated values between English, Finnish, Swedish, Russian and Spanish. Custom JSON keys and field overrides stay intact; changing language clears the previous result so it cannot be confused with new output.
+
 ## Browser workflow
 
 Start with \`pnpm dev\` from the repository root. Paste valid JSON or use the file picker, then choose a preset or configure the detected fields.
