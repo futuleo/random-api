@@ -19,6 +19,9 @@ describe("generated documentation", () => {
       expect(deployment?.content).toContain("connect-src 'none'");
       expect(deployment?.content).toContain(".github/workflows/pages.yml");
       expect(deployment?.content).toContain("/random-api/docs/");
+      const cli = result.find(({ params }) => params.page === `${base}cli`);
+      expect(cli?.content).toContain("npm install --global randomapi-studio");
+      expect(cli?.content).not.toContain("<package-name>");
       for (const guide of ["architecture", "cli", "web-desktop", "rest"]) {
         const page = result.find(
           ({ params }) => params.page === `${base}${guide}`,

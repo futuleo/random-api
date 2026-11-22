@@ -289,6 +289,10 @@ export const snippets = {
   setup: code("sh", "pnpm install --frozen-lockfile\npnpm dev"),
   install: code(
     "sh",
+    "npm install --global randomapi-studio\nrgen --help\nrgen --version",
+  ),
+  installTarball: code(
+    "sh",
     "pnpm package:cli\nnpm install -g ./apps/cli/randomapi-studio-0.1.0.tgz\nrgen --help\nrgen --version",
   ),
   cli: code(

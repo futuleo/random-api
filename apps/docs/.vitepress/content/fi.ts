@@ -128,9 +128,12 @@ macOS-kooste on allekirjoittamaton eikä sitä luvata notarisoiduksi. Älä ohit
 
 ## Asennus
 
-Käytä Node.js-versiota 24. Asenna paikallisesti tehty npm-tarball ja korvaa esimerkkitiedoston nimi oikealla:
+Käytä Node.js-versiota 24. Asenna CLI npm:stä:
 ${snippets.install}
-Paketti sisältää ajonaikaisen core-riippuvuuden; asennettu CLI ei tarvitse monorepoa. Julkista npm-nimeä tai julkaisua **ei ole vahvistettu**. \`npm install -g <package-name>\` on vain paikkamerkki mahdollista tulevaa julkaisua varten.
+Paketti sisältää coren eikä tarvitse monorepoa ajon aikana. npm-paketti on \`randomapi-studio\`, komento \`rgen\` ja yhteensopivuusnimi \`random-api\`.
+
+Vaihtoehtoisesti rakenna ja asenna paikallinen tarball repositorion juuressa:
+${snippets.installTarball}
 
 Lähdekoodityötilassa voit käyttää komentoa \`pnpm cli --scenario users --count 10 --locale fi\`.
 

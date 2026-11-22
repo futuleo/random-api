@@ -136,9 +136,12 @@ See [generators and exports](/generators) for exact settings and [privacy](/arch
 
 ## Installation
 
-Use Node.js 24. Install a locally built npm tarball; replace the example filename with the actual artifact:
+Use Node.js 24. Install the CLI from npm:
 ${snippets.install}
-The package bundles its runtime core dependency, so installing the tarball does not require this monorepo. A public npm package name and publication are **not confirmed**. If a package is published later, use \`npm install -g <package-name>\` with its verified name; this is a placeholder, not a published install command.
+The package bundles core and does not require this monorepo at runtime. The npm package is \`randomapi-studio\`; its command is \`rgen\`, with \`random-api\` as a compatibility alias.
+
+Alternatively build and install a local tarball from the repository root:
+${snippets.installTarball}
 
 For source development, run the same arguments through \`pnpm cli\` from the repository root:
 

@@ -8,7 +8,7 @@
 - Start the standalone REST backend with `pnpm dev:api`.
 - Start the VitePress documentation with `pnpm dev:docs` (loopback port 5174).
 - Build the standalone `rgen` tarball with `pnpm package:cli`. It bundles the
-  core; the `randomapi-studio` registry name is not reserved or published.
+  core. Install the registry CLI with `npm install --global randomapi-studio`.
 - Start the Electron desktop app with `pnpm dev:desktop`; it uses the same
   React distribution as the website.
 - Run `pnpm test:desktop` for a real Electron smoke test and

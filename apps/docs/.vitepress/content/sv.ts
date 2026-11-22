@@ -129,9 +129,12 @@ macOS-bygget är osignerat och utlovas inte vara notariserat. Kringgå inte oper
 
 ## Installation
 
-Använd Node.js 24. Installera en lokalt byggd npm-tarball; ersätt exempelnamnet med den faktiska filen:
+Använd Node.js 24. Installera CLI från npm:
 ${snippets.install}
-Paketet inkluderar core-beroendet för körning och behöver inte monorepot efter installation. Ett publikt npm-namn eller en publicering har **inte bekräftats**. \`npm install -g <package-name>\` är endast en platshållare för en eventuell framtida publicering.
+Paketet inkluderar kärnan och behöver inte monorepot vid körning. npm-paketet heter \`randomapi-studio\`, kommandot \`rgen\` och kompatibilitetsaliaset \`random-api\`.
+
+Alternativt kan du bygga och installera en lokal tarball från repots rot:
+${snippets.installTarball}
 
 I källkodens arbetsyta kan samma argument köras via \`pnpm cli --scenario users --count 10 --locale sv\`.
 

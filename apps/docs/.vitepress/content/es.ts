@@ -95,9 +95,12 @@ CLI independiente y local. No inicia ni contacta con REST.
 
 ## Instalación
 
-Usa Node.js 24. Construye el paquete desde la raíz y después instálalo:
+Usa Node.js 24. Instala el CLI desde npm:
 ${snippets.install}
-El paquete incluye el núcleo; no necesita dependencias de este monorepositorio al ejecutarse. \`randomapi-studio\` es un nombre previsto, **no una reserva ni una publicación confirmada**.
+El paquete incluye el núcleo y no necesita este monorepositorio al ejecutarse. El paquete npm se llama \`randomapi-studio\`, el comando \`rgen\` y el alias de compatibilidad \`random-api\`.
+
+También puedes construir e instalar un archivo local desde la raíz del repositorio:
+${snippets.installTarball}
 
 ## Comandos
 

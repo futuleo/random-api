@@ -3,22 +3,30 @@
 Local synthetic data generation from your terminal. The command is **`rgen`**.
 No accounts, API keys, LLM or network service are needed at runtime.
 
-## Install a built package
+## Install from npm
 
-Use Node.js 24. From the repository root:
+Use Node.js 24:
+
+```sh
+npm install --global randomapi-studio
+rgen --help
+rgen --version
+```
+
+The package bundles the shared generator; it does not depend on unpublished
+workspace packages. `random-api` remains a compatibility alias.
+See the [CLI documentation](https://futuleo.github.io/random-api/docs/cli.html)
+for the complete command reference and five-language guides.
+
+## Install a local build
+
+From the repository root:
 
 ```sh
 pnpm package:cli
 npm install --global ./apps/cli/randomapi-studio-0.1.0.tgz
 rgen --help
 ```
-
-The package bundles the shared generator; it does not depend on unpublished
-workspace packages. `random-api` remains a compatibility alias.
-
-The npm name `randomapi-studio` is a publication target, **not a reservation or
-confirmation of publication**. Registry publication requires authorized npm
-credentials.
 
 ## License
 

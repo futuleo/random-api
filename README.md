@@ -186,22 +186,27 @@ Local field inspection is also bounded; key inspection alone is not a full schem
 
 ## CLI
 
-The short command is **`rgen`**. Build and install its standalone tarball:
+The short command is **`rgen`**. Install the
+[`randomapi-studio` npm package](https://www.npmjs.com/package/randomapi-studio)
+with Node.js 24:
+
+```sh
+npm install --global randomapi-studio
+rgen --version
+rgen scenarios --locale fi
+rgen scenario users --count 30 --locale ru
+```
+
+For a local build, run from the repository root:
 
 ```sh
 pnpm package:cli
 npm install --global ./apps/cli/randomapi-studio-0.1.0.tgz
-rgen --version
-rgen scenarios --locale fi
-rgen scenario users --count 30 --locale ru
-rgen generate -i examples/input.json --count 20 --format xml
-rgen inspect -i examples/input.json
 ```
 
-The tarball bundles core, without unpublished runtime workspace dependencies.
-`random-api` remains a compatibility alias. `randomapi-studio` is the proposed
-npm package name, **not reserved or published**; npm authentication is required
-for publication. The CLI is MIT-licensed. `pnpm test:cli` verifies
+The package bundles core, without unpublished runtime workspace dependencies.
+`random-api` remains a compatibility alias. The CLI is MIT-licensed.
+`pnpm test:cli` verifies
 an offline isolated tarball installation and the actual `rgen` executable.
 
 Machine-readable output goes to stdout; interactive terminal summaries go to

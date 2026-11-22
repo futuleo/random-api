@@ -85,6 +85,18 @@ try {
   assert.deepEqual(Object.keys(manifest.dependencies ?? {}), []);
   assert.equal(manifest.license, "MIT");
   assert.equal(
+    manifest.homepage,
+    "https://futuleo.github.io/random-api/docs/cli.html",
+  );
+  assert.ok(
+    (
+      await readFile(
+        join(prefix, "node_modules/randomapi-studio/README.md"),
+        "utf8",
+      )
+    ).includes("npm install --global randomapi-studio"),
+  );
+  assert.equal(
     await readFile(
       join(prefix, "node_modules/randomapi-studio/LICENSE"),
       "utf8",

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Local synthetic test data with rgen: scenarios, field generators and JSON, CSV, XML or JSONL exports.",
   "license": "MIT",
+  "homepage": "https://futuleo.github.io/random-api/docs/cli.html",
   "repository": {
     "type": "git",
     "url": "https://github.com/futuleo/random-api.git",
