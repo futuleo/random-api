@@ -17,6 +17,8 @@ describe("generated documentation", () => {
       expect(deployment?.content).toContain("API_KEY_FILE");
       expect(deployment?.content).toContain("deploy/compose.tls.yml");
       expect(deployment?.content).toContain("connect-src 'none'");
+      expect(deployment?.content).toContain(".github/workflows/pages.yml");
+      expect(deployment?.content).toContain("/random-api/docs/");
       for (const guide of ["architecture", "cli", "web-desktop", "rest"]) {
         const page = result.find(
           ({ params }) => params.page === `${base}${guide}`,

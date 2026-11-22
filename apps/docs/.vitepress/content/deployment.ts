@@ -45,9 +45,15 @@ export const deployment: Record<
       "Local mode remains unauthenticated and loopback-only. Explicit public mode requires a server-side key and a private, rate-limited HTTPS gateway. See [hosting and HTTPS](/deployment) for the supplied Docker/Nginx deployment.",
     page: `# Hosting and HTTPS
 
-The deployment serves the studio at \`/\`, five-language documentation at \`/docs/\` and the REST reference at \`/api/\`. The studio links to the reference but still generates locally: source JSON is never uploaded and its production CSP keeps \`connect-src 'none'\`.
+The Docker deployment serves the studio at \`/\`, five-language documentation at \`/docs/\` and the REST reference at \`/api/\`. The studio links to the reference but still generates locally: source JSON is never uploaded and its production CSP keeps \`connect-src 'none'\`.
 
-## Three private services
+## Static hosting on GitHub Pages
+
+The repository publishes the studio and these docs using \`.github/workflows/pages.yml\` on pushes to \`main\`, or the manual **Publish website** workflow. Set Pages' publishing source to **GitHub Actions**. The workflow derives the path from Pages metadata: on the project site the studio is at \`/random-api/\` and docs at \`/random-api/docs/\`. Assets, language routes and local search use that base.
+
+Pages provides HTTPS for static files, not a REST runtime. This build disables the API link and contains no server key. The studio still generates locally. For REST, use the separate Docker deployment below.
+
+## Three private Docker services
 
 \`web\` is Nginx for static files and API forwarding. A separate \`api-nginx\` applies per-client limits before the Fastify \`api\`. Only web publishes a host port; the backend network is internal. Containers use unprivileged users, read-only filesystems, temporary storage, memory bounds and dropped capabilities. This is a small single-host deployment, not a multi-tenant API platform.
 
@@ -88,9 +94,15 @@ Keep renewal/recreation automated on your server. There is no source persistence
       "Paikallinen tila pysyy ilman tunnistautumista loopback-osoitteessa. Julkinen tila vaatii palvelimen avaimen ja yksityisen, rajoitetun HTTPS-yhdyskäytävän. Katso [julkaisu ja HTTPS](/fi/deployment).",
     page: `# Julkaisu ja HTTPS
 
-Studio toimii polussa \`/\`, viisikieliset ohjeet polussa \`/docs/\` ja REST-viite polussa \`/api/\`. Linkki avaa viitteen, ei lähetä JSON-lähdettä palvelimelle. Selain luo datan paikallisesti; tuotannon CSP säilyttää \`connect-src 'none'\`.
+Docker-julkaisussa studio toimii polussa \`/\`, viisikieliset ohjeet polussa \`/docs/\` ja REST-viite polussa \`/api/\`. Linkki avaa viitteen, ei lähetä JSON-lähdettä palvelimelle. Selain luo datan paikallisesti; tuotannon CSP säilyttää \`connect-src 'none'\`.
 
-## Kolme palvelua
+## Staattinen julkaisu GitHub Pagesissa
+
+\`.github/workflows/pages.yml\` julkaisee studion ja ohjeet, kun \`main\` päivittyy, tai käsin **Publish website** -työnkululla. Valitse Pagesin julkaisulähteeksi **GitHub Actions**. Polku tulee Pagesin metatiedoista: projektisivustolla studio on \`/random-api/\` ja ohjeet \`/random-api/docs/\`. Resurssit, kielipolut ja paikallinen haku käyttävät samaa pohjaa.
+
+Pages tarjoaa HTTPS:n staattisille tiedostoille, ei REST-palvelinta. Tästä koostamisesta API-linkki puuttuu eikä palvelinavainta sisällytetä. Selain luo datan edelleen paikallisesti. Käytä REST:lle alla olevaa erillistä Docker-julkaisua.
+
+## Kolme Docker-palvelua
 
 \`web\`-Nginx jakaa staattiset tiedostot ja välittää API-pyynnöt. Erillinen \`api-nginx\` rajoittaa asiakkaita ennen Fastify-palvelua \`api\`. Vain web julkaisee portin, taustaverkko on sisäinen. Kontit käyttävät tavallisia käyttäjiä, vain luettavia tiedostojärjestelmiä, tilapäistä tallennusta ja muistirajoja ilman lisäoikeuksia. Ratkaisu on yhdelle palvelimelle, ei moniasiakasalusta.
 
@@ -131,9 +143,15 @@ Automatisoi uusinta palvelimella. Lähdedataa ei tallenneta. Säilytä salaisuud
       "Lokalt läge är fortfarande utan autentisering och bundet till loopback. Publikt läge kräver en servernyckel och en privat, hastighetsbegränsad HTTPS-gateway. Se [drift och HTTPS](/sv/deployment).",
     page: `# Drift och HTTPS
 
-Studion finns på \`/\`, dokumentation på fem språk på \`/docs/\` och REST-referensen på \`/api/\`. Länken öppnar referensen; käll-JSON skickas aldrig till servern. Webbläsaren genererar lokalt med produktions-CSP \`connect-src 'none'\`.
+Med Docker finns studion på \`/\`, dokumentation på fem språk på \`/docs/\` och REST-referensen på \`/api/\`. Länken öppnar referensen; käll-JSON skickas aldrig till servern. Webbläsaren genererar lokalt med produktions-CSP \`connect-src 'none'\`.
 
-## Tre tjänster
+## Statisk publicering på GitHub Pages
+
+\`.github/workflows/pages.yml\` publicerar studion och dokumentationen vid push till \`main\`, eller med det manuella arbetsflödet **Publish website**. Välj **GitHub Actions** som Pages-källa. Sökvägen kommer från Pages-metadata: projektets studio finns på \`/random-api/\` och dokumentationen på \`/random-api/docs/\`. Resurser, språkvägar och lokal sökning använder samma bas.
+
+Pages ger HTTPS för statiska filer, inte en REST-server. API-länken är avstängd i denna version och ingen servernyckel inkluderas. Webbläsaren genererar fortfarande lokalt. Använd den separata Docker-driften nedan för REST.
+
+## Tre Docker-tjänster
 
 \`web\` är Nginx för statiska filer och API-vidarebefordran. Separata \`api-nginx\` begränsar klienter före Fastify-tjänsten \`api\`. Bara web publicerar en värdport; backendnätet är internt. Containrar har oprivilegierade användare, skrivskyddade filsystem, tillfällig lagring och minnesgränser utan extra capabilities. Detta är en enkel drift på en värd, inte en flerklientsplattform.
 
@@ -174,9 +192,15 @@ Automatisera förnyelse på värden. Ingen källdata sparas. Förvara hemlighete
       "Локальный режим остаётся без авторизации и доступен только на loopback. Публичный режим требует серверного ключа и закрытого шлюза с HTTPS и лимитами. См. [публикацию и HTTPS](/ru/deployment).",
     page: `# Публикация и HTTPS
 
-Studio доступна на \`/\`, общая документация на пяти языках — на \`/docs/\`, справка REST — на \`/api/\`. Ссылка открывает справку, а не отправляет исходный JSON. Генерация в браузере остаётся локальной; production CSP сохраняет \`connect-src 'none'\`.
+При Docker-развёртывании studio доступна на \`/\`, общая документация на пяти языках — на \`/docs/\`, справка REST — на \`/api/\`. Ссылка открывает справку, а не отправляет исходный JSON. Генерация в браузере остаётся локальной; production CSP сохраняет \`connect-src 'none'\`.
 
-## Три сервиса
+## Статический сайт на GitHub Pages
+
+\`.github/workflows/pages.yml\` публикует studio и документацию после пушей в \`main\` или вручную через workflow **Publish website**. Источник публикации Pages — **GitHub Actions**. Префикс берётся из метаданных Pages: для сайта проекта studio находится на \`/random-api/\`, документация — на \`/random-api/docs/\`. Ресурсы, языковые маршруты и локальный поиск используют тот же префикс.
+
+Pages предоставляет HTTPS для статических файлов, но не запускает REST. В этой сборке ссылка API отключена, серверного ключа нет. Генерация остаётся локальной в браузере. Для REST используйте отдельный Docker-деплой ниже.
+
+## Три Docker-сервиса
 
 \`web\` — Nginx для статических файлов и проксирования API. Отдельный \`api-nginx\` ограничивает клиентов перед Fastify-сервисом \`api\`. Только web публикует порт хоста; сеть backend внутренняя. Контейнеры работают без root, с read-only файловой системой, временным хранилищем, ограниченной памятью и без дополнительных capabilities. Это простой вариант для одного сервера, не многопользовательская API-платформа.
 
@@ -217,9 +241,15 @@ ${rotation}
       "El modo local sigue sin autenticación y solo en loopback. El modo público exige una clave del servidor y una pasarela privada con HTTPS y límites. Consulta [publicación y HTTPS](/es/deployment).",
     page: `# Publicación y HTTPS
 
-El estudio está en \`/\`, la documentación en cinco idiomas en \`/docs/\` y la referencia REST en \`/api/\`. El enlace abre la referencia; nunca sube el JSON original. El navegador genera localmente y la CSP de producción mantiene \`connect-src 'none'\`.
+Con Docker, el estudio está en \`/\`, la documentación en cinco idiomas en \`/docs/\` y la referencia REST en \`/api/\`. El enlace abre la referencia; nunca sube el JSON original. El navegador genera localmente y la CSP de producción mantiene \`connect-src 'none'\`.
 
-## Tres servicios
+## Publicación estática en GitHub Pages
+
+\`.github/workflows/pages.yml\` publica el estudio y la documentación al hacer push a \`main\` o mediante el workflow manual **Publish website**. Selecciona **GitHub Actions** como origen de Pages. La ruta se obtiene de sus metadatos: el estudio del proyecto está en \`/random-api/\` y los documentos en \`/random-api/docs/\`. Recursos, idiomas y búsqueda local comparten esa base.
+
+Pages ofrece HTTPS para archivos estáticos, no un servidor REST. Esta compilación desactiva el enlace API y no contiene ninguna clave del servidor. El navegador sigue generando localmente. Para REST utiliza el despliegue Docker independiente de abajo.
+
+## Tres servicios Docker
 
 \`web\` es Nginx para archivos estáticos y reenvío a la API. Otro \`api-nginx\` limita clientes antes del servicio Fastify \`api\`. Solo web publica un puerto; la red backend es interna. Los contenedores usan usuarios sin privilegios, sistemas de archivos de solo lectura, almacenamiento temporal y límites de memoria, sin capabilities adicionales. Es un despliegue sencillo en un servidor, no una plataforma multiusuario.
 

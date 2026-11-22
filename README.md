@@ -64,6 +64,23 @@ CLI commands, generator settings, exports, architecture and privacy. The
 search index is local. All 30 scenario pages per language include actual core
 settings, deterministic generated examples and copyable `rgen` commands.
 
+### GitHub Pages
+
+The public [website](https://futuleo.github.io/random-api/) and
+[documentation](https://futuleo.github.io/random-api/docs/) are published by
+`.github/workflows/pages.yml` on pushes to `main`, or manually with the
+**Publish website** GitHub Actions workflow. Pages must use **GitHub Actions**
+as its publishing source. No `gh-pages` branch, uploaded source documents or
+deployment secret is needed.
+
+The workflow gets the hosting path from GitHub Pages metadata, builds the studio
+with a documentation link, and places the static docs under `docs/` in the same
+artifact. This keeps links, assets and local search working under `/random-api/`
+and supports a later custom domain without hardcoding that prefix in the build.
+Only compiled static output is published. REST is not hosted on Pages, and its
+navigation link stays disabled until an API host is configured separately.
+Browser generation remains local and does not require the API.
+
 ## Data languages
 
 Use **Language** in web/Electron, `--locale en|fi|sv|ru|es` in `rgen`, or
