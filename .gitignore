@@ -62,6 +62,11 @@ web_modules/
 # Output of 'npm pack'
 *.tgz
 
+# License copies generated from the root LICENSE
+/apps/cli/LICENSE
+/apps/web/public/LICENSE.txt
+/apps/docs/public/LICENSE.txt
+
 # Yarn Integrity file
 .yarn-integrity
 

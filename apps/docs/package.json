@@ -2,10 +2,11 @@
   "name": "@random-api/docs",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @random-api/core build && vitepress dev",
-    "build": "pnpm --filter @random-api/core build && tsc --noEmit && vitepress build",
+    "dev": "node ../../scripts/copy-license.mjs public/LICENSE.txt && pnpm --filter @random-api/core build && vitepress dev",
+    "build": "node ../../scripts/copy-license.mjs public/LICENSE.txt && pnpm --filter @random-api/core build && tsc --noEmit && vitepress build",
     "typecheck": "tsc --noEmit",
     "preview": "vitepress preview"
   },

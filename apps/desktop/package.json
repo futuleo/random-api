@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "Unsigned, local-only Electron desktop shell for Random API",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
@@ -36,6 +37,10 @@
       "package.json"
     ],
     "extraResources": [
+      {
+        "from": "../../LICENSE",
+        "to": "LICENSE"
+      },
       {
         "from": "../web/dist",
         "to": "web",

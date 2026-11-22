@@ -2,6 +2,29 @@ export const locales = ["en", "fi", "sv", "ru", "es"] as const;
 export type Locale = (typeof locales)[number];
 export const prefix = (locale: Locale) => (locale === "en" ? "" : `/${locale}`);
 
+export const licensing: Record<Locale, { heading: string; text: string }> = {
+  en: {
+    heading: "License",
+    text: "All Random API applications, the shared core and documentation are open source under the [MIT License](/LICENSE.txt). Use, modification and redistribution, including commercial use, are permitted when retaining the copyright and permission notice. Third-party dependencies retain their own licenses. The CLI package and desktop application include the license; workspace packages marked `private` only prevent accidental npm publication.",
+  },
+  fi: {
+    heading: "Lisenssi",
+    text: "Kaikki Random API -sovellukset, yhteinen core ja dokumentaatio ovat avointa lähdekoodia [MIT-lisenssillä](/LICENSE.txt). Käyttö, muokkaus ja jakelu, myös kaupallisesti, sallitaan tekijänoikeus- ja lupailmoituksen säilyttäen. Kolmansien osapuolten riippuvuuksilla on omat lisenssinsä. CLI-paketti ja työpöytäsovellus sisältävät lisenssin; työtilapakettien `private` estää vain tahattoman npm-julkaisun.",
+  },
+  sv: {
+    heading: "Licens",
+    text: "Alla Random API-appar, den gemensamma kärnan och dokumentationen har öppen källkod under [MIT-licensen](/LICENSE.txt). Användning, ändring och distribution, även kommersiellt, tillåts när upphovsrätts- och tillståndsmeddelandet behålls. Tredjepartsberoenden behåller sina egna licenser. CLI-paketet och skrivbordsappen innehåller licensen; `private` i arbetsytans paket förhindrar bara oavsiktlig npm-publicering.",
+  },
+  ru: {
+    heading: "Лицензия",
+    text: "Все приложения Random API, общее ядро и документация открыты под [лицензией MIT](/LICENSE.txt). Разрешены использование, изменения и распространение, в том числе коммерческое, с сохранением уведомления об авторстве и текста разрешения. Зависимости сторонних разработчиков сохраняют собственные лицензии. CLI-пакет и desktop-приложение включают лицензию; флаг `private` у пакетов репозитория только предотвращает случайную публикацию в npm.",
+  },
+  es: {
+    heading: "Licencia",
+    text: "Todas las aplicaciones de Random API, el núcleo compartido y la documentación son de código abierto bajo la [licencia MIT](/LICENSE.txt). Se permiten el uso, la modificación y la redistribución, incluso comercialmente, conservando el aviso de derechos de autor y de permiso. Las dependencias de terceros mantienen sus propias licencias. El paquete CLI y la aplicación de escritorio incluyen la licencia; `private` en los paquetes del repositorio solo evita publicaciones accidentales en npm.",
+  },
+};
+
 export const navigation = {
   en: {
     language: "English",

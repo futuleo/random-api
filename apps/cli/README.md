@@ -18,7 +18,13 @@ workspace packages. `random-api` remains a compatibility alias.
 
 The npm name `randomapi-studio` is a publication target, **not a reservation or
 confirmation of publication**. Registry publication requires authorized npm
-credentials. This package currently grants no open-source license.
+credentials.
+
+## License
+
+MIT-licensed, including the bundled shared core. The package includes `LICENSE`;
+keep its copyright and permission notice when redistributing it. Commercial use
+is permitted. Third-party dependencies retain their own licenses.
 
 ## Examples
 

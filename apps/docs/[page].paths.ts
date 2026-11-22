@@ -13,6 +13,7 @@ import { ru } from "./.vitepress/content/ru";
 import {
   code,
   type GuidePages,
+  licensing,
   locales,
   navigation,
   prefix,
@@ -34,6 +35,14 @@ export default {
       const nav = navigation[locale];
       const presets = SCENARIOS.map(({ id }) => getScenario(id, locale));
       const pages: Record<string, string> = { ...guides[locale] };
+      for (const guide of [
+        "architecture",
+        "cli",
+        "web-desktop",
+        "rest",
+      ] as const)
+        pages[guide] +=
+          `\n\n## ${licensing[locale].heading}\n\n${licensing[locale].text}\n`;
       const dataset = getDataset("shop", locale);
       const linked = shopGuide[locale];
       const linkedCommands = code(

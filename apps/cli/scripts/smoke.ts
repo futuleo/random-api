@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const directory = await mkdtemp(join(tmpdir(), "rgen-package-"));
-let stage = "pack";
+let stage = "repository licensing";
 
 function runPnpm(args: string[], cwd = root) {
   const entry = process.env.npm_execpath;
@@ -42,6 +42,22 @@ function run(command: string, args: string[], cwd = directory) {
 }
 
 try {
+  const license = await readFile(join(root, "LICENSE"), "utf8");
+  assert.match(license, /^MIT License\n/);
+  assert.match(license, /Copyright \(c\) 2026 Random API contributors/);
+  for (const path of [
+    "package.json",
+    "packages/core/package.json",
+    "apps/api/package.json",
+    "apps/web/package.json",
+    "apps/cli/package.json",
+    "apps/desktop/package.json",
+    "apps/docs/package.json",
+  ]) {
+    const metadata = JSON.parse(await readFile(join(root, path), "utf8"));
+    assert.equal(metadata.license, "MIT", `Missing MIT metadata: ${path}`);
+  }
+  stage = "pack";
   runPnpm(
     ["--filter", "randomapi-studio", "pack", "--pack-destination", directory],
     root,
@@ -67,6 +83,14 @@ try {
     ),
   );
   assert.deepEqual(Object.keys(manifest.dependencies ?? {}), []);
+  assert.equal(manifest.license, "MIT");
+  assert.equal(
+    await readFile(
+      join(prefix, "node_modules/randomapi-studio/LICENSE"),
+      "utf8",
+    ),
+    license,
+  );
   const command = join(prefix, "node_modules", ".bin", "rgen");
   stage = "installed executable";
   assert.equal(run(command, ["--version"]).trim(), manifest.version);

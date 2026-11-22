@@ -2,6 +2,7 @@
   "name": "@random-api/api",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.ts",

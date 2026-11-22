@@ -2,10 +2,11 @@
   "name": "@random-api/web",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "dev": "node ../../scripts/copy-license.mjs public/LICENSE.txt && vite --host 127.0.0.1",
+    "build": "node ../../scripts/copy-license.mjs public/LICENSE.txt && tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

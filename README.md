@@ -1,6 +1,6 @@
 # Random API
 
-A private, local-first synthetic data studio. Choose one of 30 testing scenarios
+An open-source, local-first synthetic data studio. Choose one of 30 testing scenarios
 or import JSON, pick an object count and field generators, and export JSON, CSV,
 XML or JSONL.
 The website, CLI and
@@ -9,6 +9,18 @@ Electron desktop application share one deterministic TypeScript engine.
 No accounts, API keys, telemetry or source uploads. All generation runs locally;
 no LLM or external generation service is used.
 This is a local MVP, not a certified anonymization product.
+
+## License
+
+All applications, the shared core and documentation in this repository are
+available under the [MIT License](LICENSE). You may use, modify and redistribute
+the project, including commercially, while retaining its copyright and license
+notice. Third-party dependencies retain their own licenses.
+
+The root `LICENSE` is the canonical text. CLI packaging and web/docs builds copy
+it into their distributions; Electron packaging includes it in application
+resources. Workspace packages remain `private` to prevent accidental npm
+publication; this does not restrict their MIT licensing.
 
 ## Get started
 
@@ -165,7 +177,7 @@ rgen inspect -i examples/input.json
 The tarball bundles core, without unpublished runtime workspace dependencies.
 `random-api` remains a compatibility alias. `randomapi-studio` is the proposed
 npm package name, **not reserved or published**; npm authentication is required
-for publication. No open-source license is granted yet. `pnpm test:cli` verifies
+for publication. The CLI is MIT-licensed. `pnpm test:cli` verifies
 an offline isolated tarball installation and the actual `rgen` executable.
 
 Machine-readable output goes to stdout; interactive terminal summaries go to

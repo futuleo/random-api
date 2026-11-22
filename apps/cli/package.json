@@ -2,7 +2,7 @@
   "name": "randomapi-studio",
   "version": "0.1.0",
   "description": "Local synthetic test data with rgen: scenarios, field generators and JSON, CSV, XML or JSONL exports.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/futuleo/random-api.git",
@@ -14,7 +14,8 @@
   },
   "files": [
     "dist/index.js",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "bin": {
     "rgen": "./dist/index.js",
@@ -24,7 +25,7 @@
     "build": "tsc -p tsconfig.json --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node src/index.ts",
-    "prepack": "pnpm --filter @random-api/core build && pnpm build"
+    "prepack": "node ../../scripts/copy-license.mjs LICENSE && pnpm --filter @random-api/core build && pnpm build"
   },
   "devDependencies": {
     "@random-api/core": "workspace:*",

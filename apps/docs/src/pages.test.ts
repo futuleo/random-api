@@ -11,6 +11,13 @@ describe("generated documentation", () => {
     );
     for (const locale of LOCALES) {
       const base = locale === "en" ? "" : `${locale}/`;
+      for (const guide of ["architecture", "cli", "web-desktop", "rest"]) {
+        const page = result.find(
+          ({ params }) => params.page === `${base}${guide}`,
+        );
+        expect(page?.content).toContain("](/LICENSE.txt)");
+        expect(page?.content).toContain("MIT");
+      }
       const shop = result.find(
         ({ params }) => params.page === `${base}datasets/shop`,
       );
