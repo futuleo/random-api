@@ -6,8 +6,9 @@ XML or JSONL.
 The website, CLI and
 Electron desktop application share one deterministic TypeScript engine.
 
-No accounts, API keys, telemetry or source uploads. All generation runs locally;
-no LLM or external generation service is used.
+Web, desktop and CLI need no accounts, API keys, telemetry or source uploads.
+Their generation runs locally; no LLM or external generation provider is used.
+The optional deployed REST service requires a server-side API key.
 This is a local MVP, not a certified anonymization product.
 
 ## License
@@ -299,19 +300,33 @@ curl http://127.0.0.1:3000/generate \
 Open the loopback root URL for a styled API reference. Set `PORT` for another
 port. Production start: `pnpm build`, then `pnpm --filter @random-api/api start`.
 
-`POST /generate` accepts only `seed`, `count`, optional `format` (`json`/`csv`),
-and explicit `fields` (`path`/`generator`). It generates new object records; it
+`POST /generate` accepts only `seed`, `count`, optional `locale`, `format`
+(`json`/`csv`/`xml`/`jsonl`) and explicit `fields` (`path`/`generator`, with
+optional numeric bounds or enum choices). It generates new object records; it
 does not accept an original document, inferred schema or source array lengths.
 All generators except `auto` are supported. Paths must be nonempty and must not
 duplicate or overlap. Requests allow 1–1000 records and 1–200 fields; the same
 100000-value/depth limit applies to output (root record array adds one level).
 
-The server binds to loopback, disables request logging, caps bodies at 64 KiB,
+By default the server binds to loopback, disables request logging, caps bodies at 64 KiB,
 limits all requests to 120 per minute per service instance, rejects unknown
 properties, untrusted hostnames and browser-origin POSTs, and returns generic
 errors with `Cache-Control: no-store`. No CORS or authentication is enabled.
 **Do not expose it publicly** without authentication and deployment protection.
 The website and desktop never send source JSON to this service.
+
+For deployment, explicitly set `API_MODE=public`, `PUBLIC_API_URL` and either
+`API_KEY_FILE` (a readable protected secret file outside the repository) or
+`API_KEY`, never both. Public mode binds `0.0.0.0`; keep that port private behind
+an HTTPS, per-client rate-limited gateway. The URL must use HTTPS except on
+loopback and cannot contain credentials, query parameters or a fragment.
+The key must contain 32–256 printable non-whitespace ASCII characters; generate
+a random key instead of choosing a password. Configuration errors stop startup.
+Both generation endpoints require `Authorization: Bearer YOUR_API_KEY`.
+Reference and health remain public; failed authentication and health requests
+do not consume the backend's 120-per-minute generation capacity cap.
+Host and browser-origin restrictions, strict schemas and safe errors still apply.
+Keys must never enter URLs, web build variables, browser storage or request logs.
 
 ## Architecture and privacy
 
@@ -333,8 +348,9 @@ inferred types, lengths, examples or enums, with sentinel regression tests.
 Keys are assumed to be field names. Personal data used as a key is not protected.
 Generated output preserves identifying structure; nulls remain and generated
 booleans/numbers can coincidentally match originals. This is not a guarantee of
-anonymity. No API keys, input logging, telemetry or automatic source persistence
-are implemented. Provider output must remain untrusted configuration, never code.
+anonymity. No input logging, telemetry or automatic source persistence is
+implemented. Server-side REST authentication is separate from unimplemented
+provider credentials. Provider output must remain untrusted configuration, never code.
 
 ## Agent environment
 

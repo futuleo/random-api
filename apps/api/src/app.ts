@@ -16,9 +16,10 @@ import {
   serializeOutput,
 } from "@random-api/core";
 import Fastify from "fastify";
+import { type ApiSettings, parseApiSettings } from "./config.ts";
 import { apiReference } from "./reference.ts";
 
-export function buildApp() {
+export function buildApp(settings: ApiSettings = parseApiSettings({})) {
   const app = Fastify({
     logger: false,
     bodyLimit: 64 * 1024,
@@ -27,11 +28,44 @@ export function buildApp() {
 
   let windowStart = Date.now();
   let requests = 0;
+  const keyDigest =
+    settings.mode === "public"
+      ? createHash("sha256").update(settings.apiKey).digest()
+      : undefined;
   app.addHook("onRequest", async (request, reply) => {
     reply.header("cache-control", "no-store");
     reply.header("x-content-type-options", "nosniff");
     reply.header("x-frame-options", "DENY");
     reply.header("referrer-policy", "no-referrer");
+    const localHost = ["127.0.0.1", "localhost", "::1", "[::1]"].includes(
+      request.hostname.toLowerCase(),
+    );
+    const allowedHost =
+      settings.mode === "local"
+        ? localHost
+        : request.hostname.toLowerCase() === settings.publicUrl.hostname ||
+          (localHost && request.method === "GET" && request.url === "/health");
+    if (
+      !allowedHost ||
+      (request.method === "POST" && request.headers.origin !== undefined)
+    )
+      return reply.code(403).send({ error: "Client not permitted." });
+    if (keyDigest !== undefined && request.method === "POST") {
+      const authorization = request.headers.authorization;
+      const token =
+        typeof authorization === "string"
+          ? /^Bearer ([\x21-\x7e]{32,256})$/i.exec(authorization)?.[1]
+          : undefined;
+      if (
+        token === undefined ||
+        !timingSafeEqual(keyDigest, createHash("sha256").update(token).digest())
+      )
+        return reply
+          .code(401)
+          .header("www-authenticate", 'Bearer realm="Random API"')
+          .send({ error: "Authentication required." });
+    }
+    if (settings.mode === "public" && request.method !== "POST") return;
     if (Date.now() - windowStart >= 60_000) {
       windowStart = Date.now();
       requests = 0;
@@ -41,13 +75,7 @@ export function buildApp() {
       return reply
         .code(429)
         .header("retry-after", "60")
-        .send({ error: "Local request limit reached." });
-    }
-    if (
-      !["127.0.0.1", "localhost", "::1"].includes(request.hostname) ||
-      (request.method === "POST" && request.headers.origin !== undefined)
-    ) {
-      return reply.code(403).send({ error: "Local clients only." });
+        .send({ error: "Service request limit reached." });
     }
   });
 
@@ -56,7 +84,7 @@ export function buildApp() {
       "content-security-policy",
       "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     );
-    return reply.type("text/html; charset=utf-8").send(apiReference);
+    return reply.type("text/html; charset=utf-8").send(apiReference(settings));
   });
 
   app.get("/health", {
@@ -225,3 +253,5 @@ export function buildApp() {
 
   return app;
 }
+
+import { createHash, timingSafeEqual } from "node:crypto";

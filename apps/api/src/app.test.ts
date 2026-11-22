@@ -1,6 +1,7 @@
 import { generateDataset } from "@random-api/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "./app.ts";
+import { parseApiSettings } from "./config.ts";
 
 describe("API scaffold", () => {
   const apps: ReturnType<typeof buildApp>[] = [];
@@ -286,5 +287,163 @@ describe("API scaffold", () => {
     const limited = await app.inject({ method: "GET", url: "/health" });
     expect(limited.statusCode).toBe(429);
     expect(limited.headers["retry-after"]).toBe("60");
+  });
+
+  it("requires a key for deployed generation while keeping reference and health public", async () => {
+    const key = "TEST_API_KEY_SENTINEL_".repeat(3);
+    const app = buildApp(
+      parseApiSettings({
+        API_MODE: "public",
+        API_KEY: key,
+        PUBLIC_API_URL: "https://example.test/api/",
+      }),
+    );
+    apps.push(app);
+    const headers = { host: "example.test", authorization: `Bearer ${key}` };
+    for (const url of ["/generate", "/datasets/shop"]) {
+      const payload =
+        url === "/generate" ? settings : { seed: "test", count: 2 };
+      for (const authorization of [
+        undefined,
+        `Bearer ${"WRONG_SENTINEL_".repeat(4)}`,
+        key,
+      ]) {
+        const result = await app.inject({
+          method: "POST",
+          url,
+          headers: {
+            host: "example.test",
+            ...(authorization ? { authorization } : {}),
+          },
+          payload,
+        });
+        expect(result.statusCode).toBe(401);
+        expect(result.headers["www-authenticate"]).toContain("Bearer");
+        expect(result.body).not.toContain("SENTINEL");
+      }
+      expect(
+        (await app.inject({ method: "POST", url, headers, payload }))
+          .statusCode,
+      ).toBe(200);
+    }
+    const reference = await app.inject({ url: "/", headers });
+    expect(reference.body).toContain("https://example.test/api/generate");
+    expect(reference.body).toContain("Authorization: Bearer YOUR_API_KEY");
+    expect(reference.body).not.toContain(key);
+    expect(reference.body).toContain('href="health"');
+    expect(
+      (await app.inject({ url: "/health", headers: { host: "[::1]:3000" } }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await app.inject({ url: "/health", headers: { host: "127.0.0.1" } }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/generate",
+          headers: { ...headers, host: "SENTINEL.test" },
+          payload: settings,
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/generate",
+          headers: { ...headers, origin: "https://example.test" },
+          payload: settings,
+        })
+      ).statusCode,
+    ).toBe(403);
+    const leaked = await app.inject({
+      method: "POST",
+      url: "/generate",
+      headers,
+      payload: { ...settings, document: { name: "SENTINEL_ORIGINAL" } },
+    });
+    expect(leaked.statusCode).toBe(400);
+    expect(leaked.body).not.toContain("SENTINEL");
+  });
+
+  it("keeps health and failed authentication outside the public generation quota", async () => {
+    const key = "PUBLIC_QUOTA_TEST_KEY_".repeat(3);
+    const app = buildApp(
+      parseApiSettings({
+        API_MODE: "public",
+        API_KEY: key,
+        PUBLIC_API_URL: "https://example.test/api/",
+      }),
+    );
+    apps.push(app);
+    for (let index = 0; index < 121; index += 1) {
+      expect(
+        (
+          await app.inject({
+            url: "/health",
+            headers: { host: "example.test" },
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: "/generate",
+            headers: { host: "example.test" },
+            payload: settings,
+          })
+        ).statusCode,
+      ).toBe(401);
+    }
+    const headers = { host: "example.test", authorization: `Bearer ${key}` };
+    for (let index = 0; index < 120; index += 1)
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: "/generate",
+            headers,
+            payload: settings,
+          })
+        ).statusCode,
+      ).toBe(200);
+    const limited = await app.inject({
+      method: "POST",
+      url: "/generate",
+      headers,
+      payload: settings,
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.headers["retry-after"]).toBe("60");
+    expect(
+      (await app.inject({ url: "/health", headers: { host: "127.0.0.1" } }))
+        .statusCode,
+    ).toBe(200);
+  });
+
+  it("accepts the configured IPv6 public host", async () => {
+    const app = buildApp(
+      parseApiSettings({
+        API_MODE: "public",
+        API_KEY: "IPV6_PUBLIC_TEST_KEY_".repeat(3),
+        PUBLIC_API_URL: "https://[::1]/api/",
+      }),
+    );
+    apps.push(app);
+    expect(
+      (await app.inject({ url: "/", headers: { host: "[::1]" } })).statusCode,
+    ).toBe(200);
+  });
+
+  it("uses the configured local port in reference examples", async () => {
+    const app = buildApp(parseApiSettings({ PORT: "3100" }));
+    apps.push(app);
+    expect((await app.inject({ url: "/" })).body).toContain(
+      "http://127.0.0.1:3100/generate",
+    );
   });
 });

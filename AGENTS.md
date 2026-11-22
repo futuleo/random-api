@@ -53,9 +53,11 @@
 - Add regression tests using sentinel input values for every outbound payload
   change. Never include real customer data in fixtures.
 - Surface failures without logging the source document, source snippets, or secrets.
-- The REST adapter is loopback-only, bounded and unauthenticated. Its generation
-  endpoint accepts only field paths and explicit generator settings. Do not
-  expose it publicly without authentication and deployment-specific protection.
+- The REST adapter defaults to bounded, unauthenticated loopback-only mode.
+  Explicit public mode requires a server-side API key and approved public URL.
+  Keep deployed generation behind HTTPS and the rate-limited gateway; never
+  embed the key in the web bundle. Generation accepts only field paths and
+  explicit generator settings, never original documents.
 - Field type inspection and source array lengths are local-only metadata. Do
   not reuse them in outbound requests. CSV and JSON exports must serialize
   generated output, not the source; neutralize spreadsheet formula prefixes.

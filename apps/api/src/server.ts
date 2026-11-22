@@ -1,13 +1,14 @@
 import { buildApp } from "./app.ts";
+import { loadApiSettings } from "./config.ts";
 
-const port = Number(process.env.PORT ?? 3000);
-if (!Number.isInteger(port) || port < 1 || port > 65535) {
-  process.stderr.write("PORT must be an integer between 1 and 65535.\n");
-  process.exitCode = 1;
-} else {
-  const app = buildApp();
+try {
+  const settings = await loadApiSettings(process.env);
+  const app = buildApp(settings);
   try {
-    const address = await app.listen({ port, host: "127.0.0.1" });
+    const address = await app.listen({
+      port: settings.port,
+      host: settings.host,
+    });
     process.stdout.write(`API listening at ${address}\n`);
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       process.once(signal, () => {
@@ -23,4 +24,9 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
     );
     process.exitCode = 1;
   }
+} catch (error) {
+  process.stderr.write(
+    `${error instanceof Error ? error.message : "Invalid API configuration."}\n`,
+  );
+  process.exitCode = 1;
 }
