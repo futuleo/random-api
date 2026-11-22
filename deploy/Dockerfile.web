@@ -1,0 +1,27 @@
+FROM node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c AS build
+WORKDIR /workspace
+RUN corepack enable && corepack prepare pnpm@10.34.9 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc LICENSE ./
+COPY packages/core/package.json ./packages/core/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/docs/package.json ./apps/docs/package.json
+RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY packages/core ./packages/core
+COPY apps/web ./apps/web
+COPY apps/docs ./apps/docs
+COPY scripts ./scripts
+ENV VITE_API_URL=/api/
+ENV VITE_DOCS_URL=/docs/
+RUN pnpm --filter @random-api/core build \
+    && pnpm --filter @random-api/web build \
+    && DOCS_BASE=/docs/ pnpm --filter @random-api/docs build
+
+FROM nginx:stable-alpine@sha256:caf4e1e032a20f9c3c5e28fc7f25ffd768ad8677b4975c54193075997b3a97e3
+COPY deploy/nginx/web.conf /etc/nginx/nginx.conf
+COPY deploy/nginx/http-common.conf /etc/nginx/http-common.conf
+COPY deploy/nginx/web-locations.conf /etc/nginx/web-locations.conf
+COPY --from=build /workspace/apps/web/dist /usr/share/nginx/html
+COPY --from=build /workspace/apps/docs/.vitepress/dist /usr/share/nginx/html/docs
+USER nginx
+EXPOSE 8080 8443
+ENTRYPOINT ["nginx", "-g", "daemon off;"]

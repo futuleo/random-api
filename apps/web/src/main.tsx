@@ -28,10 +28,13 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { type MessageKey, translate, translateError } from "./i18n.js";
 import { createOutputPreview } from "./preview.js";
+import { serviceLink } from "./service-links.js";
 import "./style.css";
 
 const DEFAULT_SCENARIO = getScenario("users");
 const EXAMPLE = JSON.stringify(DEFAULT_SCENARIO.template, null, 2);
+const API_URL = serviceLink(import.meta.env.VITE_API_URL);
+const DOCS_URL = serviceLink(import.meta.env.VITE_DOCS_URL);
 
 function getPreset(id: string, locale: Locale): Scenario {
   return DATASETS.some((item) => item.id === id)
@@ -440,6 +443,17 @@ function App() {
             <Icon name="terminal" />
             {t("Developer guide")}
           </button>
+          {API_URL && (
+            <a
+              className="nav-item"
+              href={API_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Icon name="code" />
+              {t("REST API")}
+            </a>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <div className="local-card">
@@ -540,16 +554,11 @@ function App() {
                     "Open the loopback address printed by the command. Set VITE_DOCS_URL at web build time to link a hosted documentation site.",
                   )}
                 </p>
-                {typeof import.meta.env.VITE_DOCS_URL === "string" &&
-                  /^https?:\/\//.test(import.meta.env.VITE_DOCS_URL) && (
-                    <a
-                      href={import.meta.env.VITE_DOCS_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {t("Open documentation")}
-                    </a>
-                  )}
+                {DOCS_URL && (
+                  <a href={DOCS_URL} target="_blank" rel="noreferrer">
+                    {t("Open documentation")}
+                  </a>
+                )}
               </article>
               <article className="panel guide-card">
                 <Icon name="terminal" />
@@ -584,6 +593,13 @@ function App() {
                     "REST accepts only explicit field paths and generator settings, never source documents.",
                   )}
                 </p>
+                {API_URL && (
+                  <p>
+                    <a href={API_URL} target="_blank" rel="noreferrer">
+                      {t("Open REST API reference")}
+                    </a>
+                  </p>
+                )}
               </article>
               <article className="panel guide-card full-width">
                 <Icon name="shield" />

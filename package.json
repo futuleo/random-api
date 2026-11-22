@@ -17,6 +17,7 @@
     "test:cli": "node apps/cli/scripts/smoke.ts",
     "dev:desktop": "pnpm --filter @random-api/core build && pnpm --filter @random-api/desktop dev",
     "test:desktop": "pnpm build && pnpm --filter @random-api/desktop smoke",
+    "test:deploy": "node deploy/smoke.ts",
     "package:desktop": "pnpm --filter @random-api/core build && pnpm --filter @random-api/desktop package:dir",
     "build": "pnpm -r build",
     "typecheck": "pnpm --filter @random-api/core build && pnpm -r typecheck",

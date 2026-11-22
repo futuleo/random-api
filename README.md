@@ -22,6 +22,7 @@ The root `LICENSE` is the canonical text. CLI packaging and web/docs builds copy
 it into their distributions; Electron packaging includes it in application
 resources. Workspace packages remain `private` to prevent accidental npm
 publication; this does not restrict their MIT licensing.
+The Docker API and gateway images also carry the canonical license.
 
 ## Get started
 
@@ -51,7 +52,12 @@ it after changes. Electron downloads a platform binary on installation/first run
 `pnpm docs:build` creates static HTML in `apps/docs/.vitepress/dist`;
 `pnpm docs:preview` serves that build on loopback port 4174. For subpath hosting,
 build with `DOCS_BASE=/your-prefix/`. Set `VITE_DOCS_URL` at web build time to
-link a deployed HTTP(S) documentation site from the developer guide.
+link a documentation site from the developer guide. `VITE_API_URL` adds a
+REST-reference link in navigation and the mobile-accessible guide. Both accept
+HTTP(S) URLs or same-origin paths such as `/docs/` and `/api/`, without
+credentials, query parameters or fragments; invalid settings fail the build.
+These are navigation links, not generation endpoints: web CSP still disallows
+network connections and the browser never uploads the source.
 
 English, Finnish, Swedish, Russian and Spanish guides cover each application,
 CLI commands, generator settings, exports, architecture and privacy. The
@@ -328,13 +334,62 @@ do not consume the backend's 120-per-minute generation capacity cap.
 Host and browser-origin restrictions, strict schemas and safe errors still apply.
 Keys must never enter URLs, web build variables, browser storage or request logs.
 
+## Docker deployment
+
+`deploy/compose.yml` runs separate **web Nginx**, **API gateway Nginx** and
+**Fastify API** services. Web serves `/`, documentation `/docs/`, and REST `/api/`.
+Only web publishes a port, bound to `127.0.0.1:8080` by default. The internal
+backend network has no external access. Containers are unprivileged, read-only,
+memory-bounded and have dropped capabilities.
+
+With Docker Compose 2.24.4+, OpenSSL and a non-root deployment account, run:
+
+```sh
+mkdir -p -m 700 "$HOME/.config/random-api"
+(umask 077; set -C; openssl rand -hex 32 > "$HOME/.config/random-api/api-key")
+export API_KEY_FILE="$HOME/.config/random-api/api-key"
+export RUNTIME_UID="$(id -u)"
+export RUNTIME_GID="$(id -g)"
+export PUBLIC_API_URL=http://localhost:8080/api/
+docker compose -f deploy/compose.yml up -d --build --wait
+```
+
+The key stays outside the checkout. Existing key files are not overwritten;
+UID/GID must match their owner so rootless containers can read mode-0600 files.
+Alternatively use `deploy/.env.example` with an explicit `--env-file`.
+The gateway allows 30 requests/minute per client, burst 10, and 4 concurrent
+connections; it returns 429 with `Retry-After: 2`. Web overwrites incoming
+forwarding headers. Do not expose private services or attach untrusted containers.
+An additional upstream proxy needs narrowly trusted real-IP configuration at web,
+otherwise its clients share a limit. Request logs omit URLs, bodies and credentials.
+
+For external access, point your domain at the host, obtain a valid certificate,
+set `PUBLIC_API_URL=https://your-domain.example/api/`, `TLS_CERT_FILE` and
+`TLS_KEY_FILE`, and run:
+
+```sh
+docker compose -f deploy/compose.yml -f deploy/compose.tls.yml up -d --build --wait
+```
+
+The HTTPS override **replaces** the published HTTP port with 443, enables
+TLS 1.2/1.3 and HSTS, and mounts protected certificate files. Keep those files
+readable by the configured unprivileged UID; never make private keys world-readable.
+DNS, firewall rules, certificate issuance and automated renewal/recreation remain
+operator responsibilities. Recreate the stack after rotating keys/certificates.
+Do not publish the default HTTP listener or send remote Bearer credentials over HTTP.
+
+The five-language VitePress guide at `/deployment` (`/ru/deployment`, etc.)
+covers hosting, calls and maintenance. `pnpm test:deploy` builds and exercises
+an isolated real Docker/Nginx/HTTPS stack with temporary synthetic credentials;
+CI runs it independently from `pnpm check`.
+
 ## Architecture and privacy
 
 ```text
 apps/web           React + Vite data studio and shared desktop renderer
 apps/desktop       Secure Electron shell and unsigned packaging
 apps/cli           Node.js filesystem/terminal adapter
-apps/api           Optional loopback Fastify service
+apps/api           Fastify service: local by default, authenticated deployment
 packages/core      Pure field inspection, seeded generation and export
 ```
 

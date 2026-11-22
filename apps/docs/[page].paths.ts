@@ -6,6 +6,7 @@ import {
   SCENARIOS,
 } from "@random-api/core";
 import { shopGuide } from "./.vitepress/content/datasets";
+import { deployment } from "./.vitepress/content/deployment";
 import { en } from "./.vitepress/content/en";
 import { es } from "./.vitepress/content/es";
 import { fi } from "./.vitepress/content/fi";
@@ -35,6 +36,10 @@ export default {
       const nav = navigation[locale];
       const presets = SCENARIOS.map(({ id }) => getScenario(id, locale));
       const pages: Record<string, string> = { ...guides[locale] };
+      pages.deployment = deployment[locale].page;
+      pages.rest += `\n\n## ${deployment[locale].title}\n\n${deployment[locale].summary}\n`;
+      pages["web-desktop"] +=
+        `\n\n## ${deployment[locale].title}\n\n${deployment[locale].summary}\n`;
       for (const guide of [
         "architecture",
         "cli",

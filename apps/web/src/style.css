@@ -130,6 +130,7 @@ textarea,
   font-weight: 650;
 }
 .nav-item {
+  text-decoration: none;
   width: 100%;
   padding: 12px;
   border: 1px solid transparent;

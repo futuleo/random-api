@@ -13,6 +13,16 @@ describe("API deployment configuration", () => {
       port: 3000,
     });
     for (const environment of [
+      {
+        API_MODE: "public",
+        API_KEY: key,
+        PUBLIC_API_URL: "https://example.test/api/?",
+      },
+      {
+        API_MODE: "public",
+        API_KEY: key,
+        PUBLIC_API_URL: "https://example.test/api/#",
+      },
       { API_MODE: "SENTINEL" },
       { API_MODE: "public" },
       {

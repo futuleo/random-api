@@ -1,0 +1,20 @@
+FROM node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c AS build
+WORKDIR /workspace
+RUN corepack enable && corepack prepare pnpm@10.34.9 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc ./
+COPY packages/core/package.json ./packages/core/package.json
+COPY apps/api/package.json ./apps/api/package.json
+RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY packages/core ./packages/core
+COPY apps/api ./apps/api
+RUN pnpm --filter @random-api/core build \
+    && pnpm --filter @random-api/api build \
+    && pnpm --filter @random-api/api deploy --prod --legacy /opt/api
+
+FROM node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
+WORKDIR /opt/api
+COPY --from=build --chown=node:node /opt/api ./
+COPY LICENSE ./LICENSE
+USER node
+EXPOSE 3000
+CMD ["node", "dist/server.js"]

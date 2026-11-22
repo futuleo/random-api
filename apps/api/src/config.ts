@@ -44,8 +44,8 @@ export function parseApiSettings(environment: NodeJS.ProcessEnv): ApiSettings {
       !(publicUrl.protocol === "http:" && loopback)) ||
     publicUrl.username ||
     publicUrl.password ||
-    publicUrl.search ||
-    publicUrl.hash ||
+    publicUrl.href.includes("?") ||
+    publicUrl.href.includes("#") ||
     !/^\/[a-zA-Z0-9/_-]*$/.test(publicUrl.pathname)
   )
     throw new TypeError(

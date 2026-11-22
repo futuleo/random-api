@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { getDataset } from "@random-api/core";
 import { defineConfig } from "vitepress";
 import generatedPages from "../[page].paths";
+import { deployment } from "./content/deployment";
 import { locales, navigation, prefix } from "./content/shared";
 
 const docsRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -58,6 +59,10 @@ export default defineConfig({
                   { text: nav.web, link: `${base}/web-desktop` },
                   { text: nav.cli, link: `${base}/cli` },
                   { text: nav.generators, link: `${base}/generators` },
+                  {
+                    text: deployment[locale].title,
+                    link: `${base}/deployment`,
+                  },
                 ],
               },
               {

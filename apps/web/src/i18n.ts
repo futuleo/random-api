@@ -1,6 +1,13 @@
 import type { Locale } from "@random-api/core";
 
 export const MESSAGES = {
+  "REST API": ["REST API", "REST API", "REST API", "API REST"],
+  "Open REST API reference": [
+    "Avaa REST API -viite",
+    "Öppna REST API-referensen",
+    "Открыть справку REST API",
+    "Abrir referencia de la API REST",
+  ],
   "Linked collections": [
     "Yhdistetyt kokoelmat",
     "Sammanhängande samlingar",

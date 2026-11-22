@@ -1,0 +1,14 @@
+services:
+  web:
+    ports: !override
+      - "${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:8443"
+    volumes:
+      - ./nginx/web-tls.conf:/etc/nginx/nginx.conf:ro
+    secrets:
+      - tls_certificate
+      - tls_private_key
+secrets:
+  tls_certificate:
+    file: ${TLS_CERT_FILE:?Set TLS_CERT_FILE to the full certificate chain}
+  tls_private_key:
+    file: ${TLS_KEY_FILE:?Set TLS_KEY_FILE to the TLS private key}

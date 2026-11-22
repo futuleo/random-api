@@ -5,12 +5,18 @@ import pages from "../[page].paths";
 describe("generated documentation", () => {
   it("generates every guide and all 30 actual scenarios in each language", () => {
     const result = pages.paths();
-    expect(result).toHaveLength(5 * (7 + 1 + 30 + 1));
+    expect(result).toHaveLength(5 * (7 + 1 + 30 + 1 + 1));
     expect(new Set(result.map(({ params }) => params.page)).size).toBe(
       result.length,
     );
     for (const locale of LOCALES) {
       const base = locale === "en" ? "" : `${locale}/`;
+      const deployment = result.find(
+        ({ params }) => params.page === `${base}deployment`,
+      );
+      expect(deployment?.content).toContain("API_KEY_FILE");
+      expect(deployment?.content).toContain("deploy/compose.tls.yml");
+      expect(deployment?.content).toContain("connect-src 'none'");
       for (const guide of ["architecture", "cli", "web-desktop", "rest"]) {
         const page = result.find(
           ({ params }) => params.page === `${base}${guide}`,
